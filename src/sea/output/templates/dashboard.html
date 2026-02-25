@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Evolution Report: {{ site_name }}</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface-hover: #334155;
+    --border: #475569; --text: #e2e8f0; --text-muted: #94a3b8;
+    --accent: #38bdf8; --success: #4ade80; --warning: #fbbf24; --danger: #f87171;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2rem; margin-bottom: 0.5rem; color: var(--accent); }
+  h2 { font-size: 1.5rem; margin: 2rem 0 1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  .meta { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem; }
+
+  /* Collapsible sections */
+  .section { background: var(--surface); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
+  .section-header { padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  .section-header:hover { background: var(--surface-hover); }
+  .section-header .arrow { transition: transform 0.2s; font-size: 0.75rem; color: var(--text-muted); }
+  .section.collapsed .section-body { display: none; }
+  .section.collapsed .arrow { transform: rotate(-90deg); }
+  .section-body { padding: 0 1.25rem 1.25rem; }
+
+  /* Cards */
+  .card { background: var(--surface-hover); border-radius: var(--radius); padding: 1rem; margin-bottom: 0.75rem; border-left: 3px solid var(--accent); }
+  .card-title { font-weight: 600; margin-bottom: 0.25rem; }
+  .card-meta { font-size: 0.8rem; color: var(--text-muted); }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-right: 0.25rem; }
+  .badge-easy, .badge-low, .badge-good, .badge-quick-win { background: rgba(74,222,128,0.15); color: var(--success); }
+  .badge-moderate, .badge-medium, .badge-needs-improvement, .badge-medium-term { background: rgba(251,191,36,0.15); color: var(--warning); }
+  .badge-hard, .badge-high, .badge-poor, .badge-long-term { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .badge-requires_migration, .badge-critical, .badge-serious { background: rgba(248,113,113,0.25); color: var(--danger); }
+  .badge-minor, .badge-suggestion { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+  .badge-major { background: rgba(251,191,36,0.15); color: var(--warning); }
+
+  /* Score bars */
+  .scores { display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; }
+  .score-item { flex: 1; min-width: 120px; }
+  .score-label { font-size: 0.75rem; color: var(--text-muted); }
+  .score-bar { height: 6px; background: var(--surface); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .score-fill.value { background: var(--accent); }
+  .score-fill.novelty { background: var(--warning); }
+  .score-fill.feasibility { background: var(--success); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; }
+  th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Filters */
+  .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-btn { padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; transition: all 0.15s; }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* Executive summary */
+  .executive { background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--accent); }
+  .executive p { margin-bottom: 0.75rem; }
+  .executive ul { padding-left: 1.25rem; }
+  .executive li { margin-bottom: 0.25rem; }
+
+  .footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0 1rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Site Evolution Report</h1>
+  <div class="meta">{{ site_name }} &mdash; Generated {{ generated_at }}</div>
+
+  {% if executive_summary %}
+  <div class="executive">
+    {{ executive_summary_html | safe }}
+  </div>
+  {% endif %}
+
+  {# ── Recommendations ─────────────────────────────────── #}
+  {% if recommendations %}
+  <div class="section" id="recommendations">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Recommendations ({{ recommendations|length }})</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterRecs('all', this)">All</button>
+        <button class="filter-btn" onclick="filterRecs('quick-win', this)">Quick Wins</button>
+        <button class="filter-btn" onclick="filterRecs('medium-term', this)">Medium Term</button>
+        <button class="filter-btn" onclick="filterRecs('long-term', this)">Long Term</button>
+      </div>
+      {% for rec in recommendations %}
+      <div class="card rec-card" data-category="{{ rec.category }}">
+        <div class="card-title">#{{ rec.rank }}: {{ rec.title }} <code style="color:var(--text-muted);font-size:0.8rem">{{ rec.id }}</code></div>
+        <div class="card-meta">
+          <span class="badge badge-{{ rec.category }}">{{ rec.category }}</span>
+          <span class="badge badge-{{ rec.estimated_complexity }}">{{ rec.estimated_complexity }} complexity</span>
+        </div>
+        <p style="margin-top:0.5rem;font-size:0.9rem;">{{ rec.description }}</p>
+        {% if rec.rationale %}<p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;"><em>{{ rec.rationale }}</em></p>{% endif %}
+        <div class="scores">
+          <div class="score-item">
+            <div class="score-label">User Value: {{ rec.scores.user_value }}/10</div>
+            <div class="score-bar"><div class="score-fill value" style="width:{{ rec.scores.user_value * 10 }}%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Novelty: {{ rec.scores.novelty }}/10</div>
+            <div class="score-bar"><div class="score-fill novelty" style="width:{{ rec.scores.novelty * 10 }}%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Feasibility: {{ rec.scores.feasibility }}/10</div>
+            <div class="score-bar"><div class="score-fill feasibility" style="width:{{ rec.scores.feasibility * 10 }}%"></div></div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Competitive Research ─────────────────────────────── #}
+  {% if research %}
+  <div class="section" id="research">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Comparative Research</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if research.competitors %}
+      <h3>Competitors</h3>
+      {% for comp in research.competitors %}
+      <div class="card">
+        <div class="card-title">{{ comp.name }} <a href="{{ comp.url }}" style="color:var(--accent);font-size:0.85rem;">{{ comp.url }}</a></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);">{{ comp.relevance }}</p>
+        {% if comp.strengths %}<p style="font-size:0.85rem;margin-top:0.25rem;"><strong>+</strong> {{ comp.strengths|join(', ') }}</p>{% endif %}
+        {% if comp.weaknesses %}<p style="font-size:0.85rem;"><strong>-</strong> {{ comp.weaknesses|join(', ') }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if research.gaps %}
+      <h3>Gaps</h3>
+      {% for gap in research.gaps %}
+      <div class="card">
+        <span class="badge badge-{{ gap.severity }}">{{ gap.severity }}</span>
+        {{ gap.description }}
+        {% if gap.competitors_with_feature %}<span style="font-size:0.8rem;color:var(--text-muted);"> ({{ gap.competitors_with_feature|join(', ') }})</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Code Analysis ────────────────────────────────────── #}
+  {% if code_analysis %}
+  <div class="section" id="code-analysis">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Code Analysis</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if code_analysis.tech_stack %}
+      <h3>Tech Stack</h3>
+      <table>
+        <thead><tr><th>Technology</th><th>Category</th><th>Version</th><th>UX Pros</th><th>UX Cons</th></tr></thead>
+        <tbody>
+        {% for t in code_analysis.tech_stack %}
+        <tr><td>{{ t.name }}</td><td>{{ t.category }}</td><td>{{ t.version }}</td><td>{{ t.ux_pros|join(', ') }}</td><td>{{ t.ux_cons|join(', ') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if code_analysis.tech_debt %}
+      <h3>Tech Debt</h3>
+      {% for debt in code_analysis.tech_debt %}
+      <div class="card">
+        <span class="badge badge-{{ debt.severity }}">{{ debt.severity }}</span>
+        {{ debt.description }}
+        {% if debt.suggestion %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: {{ debt.suggestion }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <p style="margin-top:1rem;font-size:0.9rem;">{{ code_analysis.summary }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Feasibility ──────────────────────────────────────── #}
+  {% if feasibility %}
+  <div class="section" id="feasibility">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Feasibility Assessment</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead><tr><th>Rec ID</th><th>Rating</th><th>Cost</th><th>Dev Days</th><th>Risk</th></tr></thead>
+        <tbody>
+        {% for a in feasibility.assessments %}
+        <tr>
+          <td>{{ a.recommendation_id }}</td>
+          <td><span class="badge badge-{{ a.rating }}">{{ a.rating }}</span></td>
+          <td>{{ a.cost_estimate }}</td>
+          <td>{{ a.developer_days }}</td>
+          <td><span class="badge badge-{{ a.risk }}">{{ a.risk }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Quality Audit ────────────────────────────────────── #}
+  {% if quality_audit %}
+  <div class="section" id="quality-audit">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Quality Audit</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if quality_audit.accessibility.issues %}
+      <h3>Accessibility Issues</h3>
+      {% for issue in quality_audit.accessibility.issues %}
+      <div class="card">
+        <span class="badge badge-{{ issue.severity }}">{{ issue.severity }}</span>
+        {{ issue.description }}
+        {% if issue.wcag_criterion %}<span style="font-size:0.8rem;color:var(--text-muted);"> (WCAG {{ issue.wcag_criterion }})</span>{% endif %}
+        {% if issue.suggestion %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: {{ issue.suggestion }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if quality_audit.performance.metrics %}
+      <h3>Performance Metrics</h3>
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th><th>Rating</th></tr></thead>
+        <tbody>
+        {% for m in quality_audit.performance.metrics %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td>{{ m.value }}</td>
+          <td><span class="badge badge-{{ m.rating }}">{{ m.rating }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if quality_audit.priority_issues %}
+      <h3>Priority Issues</h3>
+      {% for issue in quality_audit.priority_issues %}
+      <div class="card">
+        <span class="badge badge-{{ issue.impact }}">{{ issue.impact }}</span>
+        <span class="badge">{{ issue.category }}</span>
+        {{ issue.description }}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── UX & Design ────────────────────────────────────────── #}
+  {% if ux_design %}
+  <div class="section" id="ux-design">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">UX &amp; Design</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if ux_design.overall_impression %}
+      <div class="card" style="border-left-color:var(--accent);">
+        <div class="card-title">Overall Impression</div>
+        <p style="font-size:0.9rem;margin-top:0.25rem;">{{ ux_design.overall_impression }}</p>
+        {% if ux_design.strengths %}
+        <h3 style="margin-top:0.75rem;">Strengths</h3>
+        <ul style="padding-left:1.25rem;font-size:0.85rem;">
+          {% for s in ux_design.strengths %}
+          <li>{{ s }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        {% if ux_design.layout and (ux_design.layout.visual_hierarchy or ux_design.layout.whitespace_usage or ux_design.layout.grid_consistency or ux_design.layout.responsive_notes) %}
+        <div class="card">
+          <div class="card-title">Layout &amp; Visual Hierarchy</div>
+          {% if ux_design.layout.visual_hierarchy %}<p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Visual Hierarchy:</strong> {{ ux_design.layout.visual_hierarchy }}</p>{% endif %}
+          {% if ux_design.layout.whitespace_usage %}<p style="font-size:0.85rem;"><strong>Whitespace:</strong> {{ ux_design.layout.whitespace_usage }}</p>{% endif %}
+          {% if ux_design.layout.grid_consistency %}<p style="font-size:0.85rem;"><strong>Grid:</strong> {{ ux_design.layout.grid_consistency }}</p>{% endif %}
+          {% if ux_design.layout.responsive_notes %}<p style="font-size:0.85rem;"><strong>Responsive:</strong> {{ ux_design.layout.responsive_notes }}</p>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if ux_design.navigation and (ux_design.navigation.clarity or ux_design.navigation.information_architecture or ux_design.navigation.mobile_notes) %}
+        <div class="card">
+          <div class="card-title">Navigation</div>
+          {% if ux_design.navigation.clarity %}<p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Clarity:</strong> {{ ux_design.navigation.clarity }}</p>{% endif %}
+          {% if ux_design.navigation.information_architecture %}<p style="font-size:0.85rem;"><strong>IA:</strong> {{ ux_design.navigation.information_architecture }}</p>{% endif %}
+          {% if ux_design.navigation.mobile_notes %}<p style="font-size:0.85rem;"><strong>Mobile:</strong> {{ ux_design.navigation.mobile_notes }}</p>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if ux_design.typography and (ux_design.typography.readability or ux_design.typography.hierarchy or ux_design.typography.consistency) %}
+        <div class="card">
+          <div class="card-title">Typography</div>
+          {% if ux_design.typography.readability %}<p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Readability:</strong> {{ ux_design.typography.readability }}</p>{% endif %}
+          {% if ux_design.typography.hierarchy %}<p style="font-size:0.85rem;"><strong>Hierarchy:</strong> {{ ux_design.typography.hierarchy }}</p>{% endif %}
+          {% if ux_design.typography.consistency %}<p style="font-size:0.85rem;"><strong>Consistency:</strong> {{ ux_design.typography.consistency }}</p>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if ux_design.color and (ux_design.color.palette_coherence or ux_design.color.contrast_notes or ux_design.color.brand_consistency or ux_design.color.dark_mode_notes) %}
+        <div class="card">
+          <div class="card-title">Color</div>
+          {% if ux_design.color.palette_coherence %}<p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Palette:</strong> {{ ux_design.color.palette_coherence }}</p>{% endif %}
+          {% if ux_design.color.contrast_notes %}<p style="font-size:0.85rem;"><strong>Contrast:</strong> {{ ux_design.color.contrast_notes }}</p>{% endif %}
+          {% if ux_design.color.brand_consistency %}<p style="font-size:0.85rem;"><strong>Brand:</strong> {{ ux_design.color.brand_consistency }}</p>{% endif %}
+          {% if ux_design.color.dark_mode_notes %}<p style="font-size:0.85rem;"><strong>Dark Mode:</strong> {{ ux_design.color.dark_mode_notes }}</p>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      {% if ux_design.issues %}
+      <h3>Issues ({{ ux_design.issues|length }})</h3>
+      {% for issue in ux_design.issues|sort(attribute='severity') %}
+      <div class="card">
+        <span class="badge badge-{{ issue.severity }}">{{ issue.severity }}</span>
+        <span class="badge">{{ issue.area }}</span>
+        {{ issue.description }}
+        {% if issue.recommendation %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Recommendation: {{ issue.recommendation }}</span>{% endif %}
+        {% if issue.competitors_doing_better %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Competitors doing better: {{ issue.competitors_doing_better|join(', ') }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Screenshots ──────────────────────────────────────── #}
+  {% if screenshots %}
+  <div class="section" id="screenshots">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Screenshots ({{ screenshots|length }})</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% for entry in screenshots %}
+      <h3>{{ entry.url }}</h3>
+      <div style="border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:1rem;">
+        {% if entry.full_page_path is defined and entry.full_page_path %}
+          {# Single full-page image (preferred) #}
+          <img src="{{ entry.full_page_path }}" style="width:100%; display:block;" alt="Full page screenshot of {{ entry.url }}">
+        {% elif entry.full_page is defined and entry.full_page %}
+          {# Inline base64 full-page image #}
+          {% autoescape false %}
+          <img src="data:image/jpeg;base64,{{ entry.full_page }}" style="width:100%; display:block;" alt="Full page screenshot of {{ entry.url }}">
+          {% endautoescape %}
+        {% elif entry.tile_paths is defined and entry.tile_paths %}
+          {# Tiled file-based fallback #}
+          {% for path in entry.tile_paths %}
+          <img src="{{ path }}" style="width:100%; display:block;" alt="Screenshot section {{ loop.index }}">
+          {% endfor %}
+        {% elif entry.tiles is defined and entry.tiles %}
+          {# Inline base64 tiles fallback #}
+          {% for tile in entry.tiles %}
+          {% autoescape false %}
+          <img src="data:image/jpeg;base64,{{ tile }}" style="width:100%; display:block;" alt="Screenshot section {{ loop.index }}">
+          {% endautoescape %}
+          {% endfor %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    Generated by Site Evolution Agents
+  </div>
+</div>
+
+<script>
+function toggle(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+function filterRecs(category, btn) {
+  document.querySelectorAll('.filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.rec-card').forEach(card => {
+    card.style.display = (category === 'all' || card.dataset.category === category) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
