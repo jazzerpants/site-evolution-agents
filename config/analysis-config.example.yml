@@ -1,0 +1,37 @@
+# analysis-config.yml — Example configuration
+#
+# Copy this file to analysis-config.yml and fill in your values.
+# At least one of target_path or target_url is required.
+
+# === Required (at least one) ===
+target_path: "/Users/sjaspan/src/realworld-nextjs16"   # Absolute path to the local codebase
+target_url: ""                                          # Public URL of the live site
+
+# === User priorities (at least one required) ===
+priorities:
+  - "Better UX and new features"
+  - "Performance and accessibility"
+  - "Design system flexibility"
+
+# === Optional ===
+site_name: ""            # Human-readable name (derived from codebase if omitted)
+site_description: ""     # One-sentence description (derived if omitted)
+
+competitor_urls:         # Manually specified competitors (auto-discovered if omitted)
+  # - "https://example-competitor.com"
+
+known_issues:            # Known pain points to prioritize
+  # - "Slow initial page load on mobile"
+
+user_feedback: ""        # Paste or path to user feedback data
+
+design_assets:           # Paths or URLs to design system / brand docs
+  # - "./path/to/figma-export"
+
+output_directory: "./output"   # Where to write the Markdown report and HTML dashboard
+
+# === Constraints (optional) ===
+constraints:
+  must_keep: []          # Technologies or patterns that must not change
+  must_avoid: []         # Technologies or approaches to avoid
+  budget: ""             # e.g., "small team, 2-week sprint"
