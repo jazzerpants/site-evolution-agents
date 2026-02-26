@@ -1,0 +1,358 @@
+{
+  "generated_at": "2026-01-01T12:00:00",
+  "config": {
+    "target_url": "https://example.com",
+    "target_path": "",
+    "priorities": ["Better UX and new features", "Performance and accessibility"],
+    "site_name": "Example App",
+    "site_description": "A sample Next.js application",
+    "output_directory": "./output",
+    "features": [],
+    "site_depth": 1,
+    "competitor_urls": [],
+    "known_issues": [],
+    "user_feedback": "",
+    "design_assets": [],
+    "constraints": {"must_keep": [], "must_avoid": [], "budget": ""}
+  },
+  "research": {
+    "competitors": [
+      {
+        "name": "Acme Search",
+        "url": "https://acme.example.com",
+        "relevance": "Same market segment",
+        "strengths": ["Fast site search", "Dark mode", "Mobile-first design"],
+        "weaknesses": ["Limited content depth"]
+      },
+      {
+        "name": "BetterDocs",
+        "url": "https://betterdocs.example.com",
+        "relevance": "Similar content structure",
+        "strengths": ["Excellent navigation", "Full-text search"],
+        "weaknesses": ["Slow initial load"]
+      }
+    ],
+    "feature_matrix": [
+      {"feature": "Site Search", "current_site": "no", "competitors": {"Acme Search": "yes", "BetterDocs": "yes"}},
+      {"feature": "Dark Mode", "current_site": "no", "competitors": {"Acme Search": "yes", "BetterDocs": "no"}},
+      {"feature": "Mobile Nav", "current_site": "partial", "competitors": {"Acme Search": "yes", "BetterDocs": "yes"}}
+    ],
+    "ux_patterns": [
+      {"name": "Sticky sidebar nav", "description": "Fixed left navigation that stays in view while scrolling", "seen_in": ["Acme Search"], "relevance": "Reduces navigation friction on long pages"},
+      {"name": "Progressive disclosure", "description": "Show details on demand rather than all at once", "seen_in": ["Acme Search", "BetterDocs"], "relevance": "Reduces cognitive load for new users"}
+    ],
+    "gaps": [
+      {"description": "No site search", "severity": "high", "user_value": "high", "competitor_prevalence": 2, "competitors_with_feature": ["Acme Search", "BetterDocs"]},
+      {"description": "No dark mode", "severity": "medium", "user_value": "medium", "competitor_prevalence": 1, "competitors_with_feature": ["Acme Search"]}
+    ],
+    "trends": ["Search-first navigation", "Dark mode as standard", "Mobile-first layouts"],
+    "design_systems": [],
+    "summary": "Two competitors analyzed. Site search is a significant gap — both competitors offer it. Dark mode is offered by one. Mobile navigation needs improvement."
+  },
+  "code_analysis": {
+    "tech_stack": [
+      {"name": "Next.js", "category": "framework", "version": "14", "ux_pros": ["Fast page loads", "SSR/SSG support"], "ux_cons": ["Large bundle without optimization"]},
+      {"name": "Tailwind CSS", "category": "styling", "version": "3", "ux_pros": ["Consistent spacing", "Responsive utilities"], "ux_cons": []},
+      {"name": "React", "category": "ui-library", "version": "18", "ux_pros": ["Component reuse", "Rich ecosystem"], "ux_cons": []}
+    ],
+    "architecture": {
+      "routing_pattern": "Next.js App Router with file-based routing",
+      "data_flow": "Server components fetch data directly; client components use SWR",
+      "component_tree_summary": "Layout → Header + Sidebar + Main; pages are leaf components",
+      "mermaid_diagram": "flowchart TD\n    layout[RootLayout]:::keep\n    header[Header]:::keep\n    sidebar[Sidebar]:::keep\n    main[MainContent]:::keep\n    layout --> header\n    layout --> sidebar\n    layout --> main\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a"
+    },
+    "components": [
+      {"name": "Header", "file_path": "src/components/Header.tsx", "description": "Top navigation bar with logo and links", "has_tests": true},
+      {"name": "Sidebar", "file_path": "src/components/Sidebar.tsx", "description": "Left nav with section links", "has_tests": false},
+      {"name": "ArticleCard", "file_path": "src/components/ArticleCard.tsx", "description": "Card for article listings", "has_tests": true}
+    ],
+    "tech_debt": [
+      {"description": "Global CSS overrides conflict with Tailwind utilities in 3 components", "severity": "medium", "location": "src/styles/globals.css", "suggestion": "Migrate to Tailwind-only styling"},
+      {"description": "Large synchronous imports in Header increase TTI", "severity": "low", "location": "src/components/Header.tsx", "suggestion": "Use dynamic imports for non-critical icons"}
+    ],
+    "extensibility": {
+      "overall_score": "high",
+      "strengths": ["Clean component boundaries", "TypeScript throughout", "App Router makes layout sharing easy"],
+      "weaknesses": ["No shared state management — would need to add for search"],
+      "notes": "Adding search or dark mode is straightforward given the stack."
+    },
+    "design_system": {
+      "has_design_system": true,
+      "semantic_tokens": ["--color-brand", "--color-surface", "--color-text"],
+      "theming_support": "CSS variables with Tailwind config extension",
+      "animation_patterns": ["fade-in on page load", "slide-in for sidebar"],
+      "component_library": "Custom components, no external library"
+    },
+    "bundle_notes": "Main bundle is 180KB gzipped. Largest chunk is a markdown parser (42KB) that could be lazy-loaded.",
+    "summary": "Well-structured Next.js 14 app with App Router. TypeScript throughout. Tailwind for styling with a nascent design token system. High extensibility score — adding new features like search or dark mode should be straightforward."
+  },
+  "recommendations": {
+    "recommendations": [
+      {
+        "id": "REC-001",
+        "title": "Add Site Search",
+        "description": "Implement full-text search so users can find content quickly. Currently a major gap vs. both competitors.",
+        "rationale": "Both competitors offer search. High user value signal from analytics showing users hitting dead ends.",
+        "category": "medium-term",
+        "estimated_complexity": "low",
+        "expected_impact": "Significant reduction in bounce rate and navigation friction",
+        "scores": {"user_value": 9, "novelty": 4, "feasibility": 8, "accessibility_impact": 6},
+        "rank": 1,
+        "parity_gap": true,
+        "competitors_with_feature": ["Acme Search", "BetterDocs"],
+        "user_value_signal": "high"
+      },
+      {
+        "id": "REC-002",
+        "title": "Add Dark Mode",
+        "description": "Provide a light/dark theme toggle. Acme Search already offers this; user demand is increasing.",
+        "rationale": "CSS variable system already in place — low implementation cost for high perceived value.",
+        "category": "quick-win",
+        "estimated_complexity": "low",
+        "expected_impact": "Improved user comfort for evening readers; brand modernization",
+        "scores": {"user_value": 7, "novelty": 3, "feasibility": 9, "accessibility_impact": 7},
+        "rank": 2,
+        "parity_gap": true,
+        "competitors_with_feature": ["Acme Search"],
+        "user_value_signal": "medium"
+      },
+      {
+        "id": "REC-003",
+        "title": "Improve Mobile Navigation",
+        "description": "Redesign the sidebar navigation for mobile with a slide-in drawer pattern.",
+        "rationale": "60% of traffic is mobile. Current sidebar collapses poorly on small screens.",
+        "category": "quick-win",
+        "estimated_complexity": "low",
+        "expected_impact": "Better mobile engagement and reduced frustration",
+        "scores": {"user_value": 8, "novelty": 2, "feasibility": 9, "accessibility_impact": 8},
+        "rank": 3,
+        "parity_gap": false,
+        "competitors_with_feature": [],
+        "user_value_signal": "high"
+      }
+    ],
+    "promoted": ["REC-002"],
+    "demoted": [],
+    "quick_wins": ["REC-002", "REC-003"],
+    "long_term": [],
+    "summary": "Three recommendations. Site Search is the highest-impact item. Dark Mode and Mobile Nav are quick wins that can ship in parallel."
+  },
+  "feasibility": {
+    "assessments": [
+      {
+        "recommendation_id": "REC-001",
+        "rating": "moderate",
+        "cost_estimate": "medium",
+        "developer_days": "3-5 days",
+        "new_dependencies": ["fuse.js"],
+        "migration_path": "Add Fuse.js, generate JSON index at build time, add search UI component",
+        "risk": "low",
+        "pros": [{"point": "No server-side changes needed", "weight": "major"}, {"point": "Fuse.js is well-maintained", "weight": "moderate"}],
+        "cons": [{"point": "Client-side only — no analytics on search queries", "weight": "minor"}],
+        "notes": "Algolia would be a larger investment but offers better analytics."
+      },
+      {
+        "recommendation_id": "REC-002",
+        "rating": "easy",
+        "cost_estimate": "small",
+        "developer_days": "1-2 days",
+        "new_dependencies": [],
+        "migration_path": "Extend Tailwind config with dark variant; add toggle component; update CSS variables",
+        "risk": "low",
+        "pros": [{"point": "CSS variable system already in place", "weight": "major"}],
+        "cons": [{"point": "Need to audit all components for dark mode compatibility", "weight": "moderate"}],
+        "notes": "The existing CSS custom property setup makes dark mode straightforward."
+      },
+      {
+        "recommendation_id": "REC-003",
+        "rating": "easy",
+        "cost_estimate": "small",
+        "developer_days": "1-2 days",
+        "new_dependencies": [],
+        "migration_path": "Replace sidebar with a drawer component; add hamburger menu for mobile",
+        "risk": "low",
+        "pros": [{"point": "Component already exists — just needs responsive variant", "weight": "major"}],
+        "cons": [],
+        "notes": "Headless UI Disclosure component would work well here."
+      }
+    ],
+    "summary": "All three recommendations are low-risk. Dark Mode and Mobile Nav are especially easy given existing infrastructure. Site Search is moderate effort but carries no migration risk."
+  },
+  "quality_audit": {
+    "accessibility": {
+      "wcag_level": "AA",
+      "issues": [
+        {"description": "Search input placeholder text has insufficient contrast (3.2:1 vs 4.5:1 required)", "severity": "serious", "wcag_criterion": "1.4.3", "element": "input[placeholder]", "suggestion": "Darken placeholder text to #767676 or add visible label"},
+        {"description": "Sidebar links lack visible focus indicators", "severity": "serious", "wcag_criterion": "2.4.7", "element": "nav a", "suggestion": "Add focus-visible outline to all interactive elements"}
+      ],
+      "keyboard_navigation": "Most features keyboard-accessible; sidebar links missing focus rings",
+      "screen_reader_notes": "Landmarks correctly used. Article cards have descriptive aria-labels.",
+      "aria_usage": "Good use of landmarks. Some dynamic content updates missing aria-live regions."
+    },
+    "performance": {
+      "metrics": [
+        {"name": "LCP", "value": "2.4s", "rating": "needs-improvement", "notes": "Hero image not preloaded"},
+        {"name": "FCP", "value": "1.1s", "rating": "good", "notes": ""},
+        {"name": "CLS", "value": "0.05", "rating": "good", "notes": "Stable layout"},
+        {"name": "INP", "value": "180ms", "rating": "needs-improvement", "notes": "Heavy click handler in Sidebar"}
+      ],
+      "bundle_analysis": "Main bundle 180KB gzipped. Markdown parser (42KB) loaded eagerly.",
+      "image_optimization": "Hero images are WebP but missing preload hints. Thumbnail images missing explicit width/height.",
+      "caching_strategy": "Static assets cached with long TTL. API routes not cached.",
+      "critical_rendering_path": "Render-blocking CSS in head. Consider inlining critical styles."
+    },
+    "priority_issues": [
+      {"description": "LCP above 2.5s threshold due to unpreloaded hero image", "category": "performance", "impact": "high", "effort_to_fix": "low"},
+      {"description": "Missing focus indicators on sidebar navigation", "category": "accessibility", "impact": "high", "effort_to_fix": "low"},
+      {"description": "Heavy Sidebar click handler causing INP issues", "category": "performance", "impact": "medium", "effort_to_fix": "medium"}
+    ],
+    "summary": "Two serious accessibility issues (focus indicators, contrast). LCP and INP need improvement. Quick wins: preload hero image, add focus-visible styles."
+  },
+  "tech_stack_advisor": {
+    "features": [
+      {
+        "feature_name": "site search",
+        "parity_source": ["Acme Search", "BetterDocs"],
+        "current_stack_compatibility": "Next.js static site with App Router — client-side search fits natively with no server changes. Algolia would require a new API route.",
+        "simple_approach": {
+          "approach_name": "simple",
+          "description": "Client-side full-text search using Fuse.js over a pre-built JSON index generated at build time",
+          "tech_stack": ["Fuse.js", "Next.js build script"],
+          "new_dependencies": ["fuse.js"],
+          "architecture_fit": "fits_as_is",
+          "architecture_changes": [],
+          "effort_estimate": "2-3 days",
+          "pros": ["No server required", "Zero latency after initial load", "Easy to maintain"],
+          "cons": ["Limited to indexed content only", "No analytics on queries", "Poor for large corpora"]
+        },
+        "comprehensive_approach": {
+          "approach_name": "comprehensive",
+          "description": "Algolia-hosted search with typo tolerance, facets, and query analytics",
+          "tech_stack": ["Algolia", "react-instantsearch", "Next.js API Route"],
+          "new_dependencies": ["algoliasearch", "react-instantsearch"],
+          "architecture_fit": "minor_changes",
+          "architecture_changes": [
+            "Add Algolia index sync step to CI/CD pipeline",
+            "Add /api/search proxy route for server-side query proxying"
+          ],
+          "effort_estimate": "1-2 weeks",
+          "pros": ["Sub-10ms search", "Typo tolerance", "Full analytics dashboard", "Scales to millions of pages"],
+          "cons": ["$50-500/month recurring cost", "Vendor lock-in", "CI/CD changes required"]
+        },
+        "recommended_approach": "simple",
+        "recommendation_rationale": "Current site has under 500 pages. Fuse.js delivers adequate search quality at zero cost with no architectural changes. Revisit Algolia if content grows past 1,000 pages or query analytics become important.",
+        "diagrams": [
+          {
+            "title": "Current Architecture — Search Gap",
+            "phase": "current",
+            "mermaid": "flowchart TD\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a\n    classDef issue fill:#f87171,stroke:#ef4444,color:#0f172a\n    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a\n    appRouter[Next.js App Router]:::keep\n    staticFiles[Static File Server]:::keep\n    noSearch[No Search Capability]:::issue\n    tailwind[Tailwind CSS]:::keep\n    vercel[Vercel CDN]:::keep\n    appRouter --> staticFiles\n    appRouter --> noSearch\n    appRouter --> tailwind\n    staticFiles --> vercel",
+            "summary": "The current site is a well-structured static Next.js app on Vercel (green). The only gap for search is the complete absence of any search capability (red) — no index, no UI, no way for users to find content by keyword. Everything else is healthy and reusable.",
+            "components_to_keep": ["Next.js App Router", "Static File Server", "Tailwind CSS", "Vercel CDN"],
+            "components_with_issues": ["No Search Capability"],
+            "components_to_modify": [],
+            "new_components": []
+          },
+          {
+            "title": "Simple Approach — Fuse.js Client Search",
+            "phase": "simple",
+            "mermaid": "flowchart TD\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a\n    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a\n    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a\n    appRouter[Next.js App Router]:::keep\n    staticFiles[Static File Server]:::keep\n    tailwind[Tailwind CSS]:::keep\n    vercel[Vercel CDN]:::keep\n    buildScript[Build Index Script]:::new\n    jsonIndex[JSON Search Index]:::new\n    fuseJs[Fuse.js Client]:::new\n    searchUI[Search UI Component]:::new\n    appRouter --> tailwind\n    appRouter --> searchUI\n    staticFiles --> vercel\n    staticFiles --> jsonIndex\n    buildScript -->|generates| jsonIndex\n    searchUI --> fuseJs\n    fuseJs --> jsonIndex",
+            "summary": "The blue items show what gets built: a JSON search index generated at build time, Fuse.js to query it in-browser, and a Search UI component wired into the header. All green items stay exactly as-is — no server changes, no new infrastructure, no migration. Ships in 2-3 days.",
+            "components_to_keep": ["Next.js App Router", "Static File Server", "Tailwind CSS", "Vercel CDN"],
+            "components_with_issues": [],
+            "components_to_modify": [],
+            "new_components": ["Build Index Script", "JSON Search Index", "Fuse.js Client", "Search UI Component"]
+          },
+          {
+            "title": "Comprehensive Approach — Algolia Hosted Search",
+            "phase": "comprehensive",
+            "mermaid": "flowchart TD\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a\n    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a\n    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a\n    appRouter[Next.js App Router]:::keep\n    staticFiles[Static File Server]:::keep\n    tailwind[Tailwind CSS]:::keep\n    vercel[Vercel CDN]:::keep\n    cicd[CI/CD Pipeline]:::modify\n    algoliaIndex[Algolia Index]:::new\n    algoliaSDK[react-instantsearch]:::new\n    searchUI[Search UI with Facets]:::new\n    apiProxy[Search API Proxy]:::new\n    appRouter --> tailwind\n    appRouter --> searchUI\n    staticFiles --> vercel\n    cicd -->|sync on deploy| algoliaIndex\n    searchUI --> algoliaSDK\n    algoliaSDK --> apiProxy\n    apiProxy --> algoliaIndex",
+            "summary": "Blue items: a hosted Algolia index (syncs on every deploy), the react-instantsearch SDK, a richer search UI with filters, and a lightweight API proxy. Yellow: CI/CD needs one-time update to push content to Algolia. Everything green is untouched. Delivers typo tolerance, analytics, and infinite scale — at $50-500/month and 1-2 weeks of work.",
+            "components_to_keep": ["Next.js App Router", "Static File Server", "Tailwind CSS", "Vercel CDN"],
+            "components_with_issues": [],
+            "components_to_modify": ["CI/CD Pipeline"],
+            "new_components": ["Algolia Index", "react-instantsearch", "Search UI with Facets", "/api/search Proxy"]
+          }
+        ]
+      },
+      {
+        "feature_name": "dark mode",
+        "parity_source": ["Acme Search"],
+        "current_stack_compatibility": "CSS variable system already in place — dark mode is a natural extension of the existing theming infrastructure.",
+        "simple_approach": {
+          "approach_name": "simple",
+          "description": "CSS variable swap using a data-theme attribute toggled by a localStorage-backed React hook",
+          "tech_stack": ["CSS Custom Properties", "React useState/useEffect", "localStorage"],
+          "new_dependencies": [],
+          "architecture_fit": "fits_as_is",
+          "architecture_changes": ["Add dark variable values to :root[data-theme='dark']", "Add ThemeToggle component"],
+          "effort_estimate": "1-2 days",
+          "pros": ["Zero new dependencies", "Instant theme switch with no flash", "Persists across sessions"],
+          "cons": ["Manual audit of all components needed for edge cases"]
+        },
+        "comprehensive_approach": null,
+        "recommended_approach": "simple",
+        "recommendation_rationale": "The existing CSS variable infrastructure makes a native CSS approach the obvious choice. No library needed. The only work is defining dark values and adding a toggle.",
+        "diagrams": [
+          {
+            "title": "Current Architecture — No Theming",
+            "phase": "current",
+            "mermaid": "flowchart TD\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a\n    classDef issue fill:#f87171,stroke:#ef4444,color:#0f172a\n    cssVars[CSS Custom Properties]:::keep\n    tailwind[Tailwind CSS]:::keep\n    header[Header Component]:::keep\n    sidebar[Sidebar Component]:::keep\n    noTheme[No Theme Toggle]:::issue\n    noTheme -. missing .-> header\n    cssVars --> tailwind\n    tailwind --> header\n    tailwind --> sidebar",
+            "summary": "The site already uses CSS custom properties (variables) for colors — that foundation is solid (green). What's missing is a theme toggle and dark variable definitions. No existing component handles this (red). The good news: no architectural changes are needed, just additions.",
+            "components_to_keep": ["CSS Custom Properties", "Tailwind CSS", "Header Component", "Sidebar Component"],
+            "components_with_issues": ["No Theme Toggle"],
+            "components_to_modify": [],
+            "new_components": []
+          },
+          {
+            "title": "Simple Approach — CSS Variable Dark Mode",
+            "phase": "simple",
+            "mermaid": "flowchart TD\n    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a\n    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a\n    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a\n    cssVars[CSS Custom Properties]:::modify\n    tailwind[Tailwind CSS]:::keep\n    header[Header Component]:::modify\n    sidebar[Sidebar Component]:::keep\n    themeHook[useTheme Hook]:::new\n    themeToggle[ThemeToggle Button]:::new\n    localStorage[localStorage]:::new\n    themeHook --> localStorage\n    themeHook -->|sets data-theme| cssVars\n    header --> themeToggle\n    themeToggle --> themeHook\n    cssVars --> tailwind\n    tailwind --> sidebar",
+            "summary": "Three new items (blue): a useTheme hook that reads/writes localStorage, a ThemeToggle button placed in the Header, and the dark CSS variable values added to the stylesheet. Two existing items need small updates (yellow): CSS variables get dark-mode values, Header gets the toggle button. Everything else is untouched. Ships in 1-2 days.",
+            "components_to_keep": ["Tailwind CSS", "Sidebar Component"],
+            "components_with_issues": [],
+            "components_to_modify": ["CSS Custom Properties", "Header Component"],
+            "new_components": ["useTheme Hook", "ThemeToggle Button", "localStorage"]
+          }
+        ]
+      }
+    ],
+    "summary": "Two features evaluated. Site Search requires 3-5 days with Fuse.js (simple) or 1-2 weeks with Algolia (comprehensive). Dark Mode is a 1-2 day quick win — the existing CSS variable system makes it trivial."
+  },
+  "ux_design": {
+    "layout": {
+      "visual_hierarchy": "Strong — primary content is clearly distinguished from navigation",
+      "whitespace_usage": "Generous whitespace around content blocks improves readability",
+      "grid_consistency": "12-column grid applied consistently; minor inconsistencies in article card padding",
+      "responsive_notes": "Desktop layout is polished; mobile sidebar collapses awkwardly and requires attention"
+    },
+    "typography": {
+      "readability": "Body text at 16px with 1.6 line-height is comfortable for long-form reading",
+      "hierarchy": "H1-H3 scale is clear; H4 and below are under-differentiated",
+      "consistency": "Minor inconsistency in article card titles (some use semibold, some regular)"
+    },
+    "color": {
+      "palette_coherence": "Neutral palette with a single brand accent — cohesive and professional",
+      "contrast_notes": "Most text meets WCAG AA. Placeholder text and muted labels need darkening.",
+      "brand_consistency": "Brand color applied consistently to CTAs and active states",
+      "dark_mode_notes": "No dark mode — significant gap vs. competitor Acme Search"
+    },
+    "navigation": {
+      "clarity": "Top nav is clear; sidebar labels are descriptive",
+      "information_architecture": "Logical section grouping; max 2 levels deep",
+      "mobile_notes": "Sidebar overlaps content at 768px breakpoint; needs a drawer pattern"
+    },
+    "issues": [
+      {"area": "navigation", "description": "Sidebar collapses poorly on mobile — overlaps content at 768px", "severity": "major", "recommendation": "Implement slide-in drawer with overlay for mobile breakpoints", "competitors_doing_better": ["Acme Search", "BetterDocs"]},
+      {"area": "color", "description": "No dark mode option increases eye strain for evening readers", "severity": "major", "recommendation": "Add CSS-variable-based dark theme with localStorage persistence", "competitors_doing_better": ["Acme Search"]},
+      {"area": "typography", "description": "H4 and H5 headings are visually identical — hierarchy breaks down in deeply nested content", "severity": "minor", "recommendation": "Add 1-2px font-size difference and letter-spacing variation to lower heading levels", "competitors_doing_better": []}
+    ],
+    "strengths": [
+      "Clean, professional aesthetic with consistent brand color application",
+      "Generous whitespace makes content easy to scan",
+      "Strong H1-H3 typographic hierarchy",
+      "Consistent use of CSS custom properties enables easy theming"
+    ],
+    "overall_impression": "A well-executed, professional design that prioritizes content readability. The primary opportunities are mobile navigation and dark mode — both are quick wins given the existing infrastructure.",
+    "summary": "Strong desktop experience with clear hierarchy and good whitespace. Two major issues: mobile navigation overlap and missing dark mode. Both are addressable in under a week."
+  }
+}

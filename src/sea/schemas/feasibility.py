@@ -32,8 +32,17 @@ class FeasibilityAssessment(BaseModel):
     notes: str = ""
 
 
+class FollowUpQA(BaseModel):
+    """A single ad-hoc follow-up question and answer."""
+
+    question: str
+    answer: str
+    asked_at: str = ""  # ISO timestamp
+
+
 class FeasibilityOutput(BaseModel):
     """Full output from the 4D Technology Feasibility agent."""
 
     assessments: list[FeasibilityAssessment]
     summary: str = ""
+    follow_up_qa: list[FollowUpQA] = []

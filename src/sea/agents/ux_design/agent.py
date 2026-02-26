@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sea.agents.base import BaseAgent, extract_json
 from sea.agents.ux_design.prompts import SYSTEM_PROMPT
 from sea.schemas.ux_design import UXDesignOutput
-from sea.shared.claude_client import ClaudeClient, ToolHandler
+from sea.shared.claude_client import ClaudeClient, ToolHandler, TokensCallback
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ class UXDesignAgent(BaseAgent):
         design_system_info: str = "",
         on_progress: Any | None = None,
         on_event: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> UXDesignOutput:
         """Run the UX design audit on collected screenshots.
 
@@ -97,6 +98,7 @@ class UXDesignAgent(BaseAgent):
         raw = await self.client.vision_completion(
             system=self.get_system_prompt(),
             content=content_parts,
+            on_tokens=on_tokens,
         )
 
         logger.debug("Agent %s raw output:\n%s", self.name, raw[:500])
@@ -123,6 +125,7 @@ class UXDesignAgent(BaseAgent):
         raw_retry = await self.client.vision_completion(
             system=self.get_system_prompt(),
             content=retry_content,
+            on_tokens=on_tokens,
         )
 
         try:

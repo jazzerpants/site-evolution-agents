@@ -2,82 +2,20 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
+from markdown_it import MarkdownIt
 
 from sea.schemas.pipeline import FinalReport
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+_md = MarkdownIt()
 
 
 def _md_to_html(text: str) -> str:
-    """Minimal markdown-to-HTML for the executive summary (no dependency)."""
-    # Convert **bold**
-    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-    # Convert *italic*
-    text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
-
-    lines = text.split("\n")
-    result: list[str] = []
-    in_ul = False
-    in_ol = False
-
-    def _close_lists() -> None:
-        nonlocal in_ul, in_ol
-        if in_ul:
-            result.append("</ul>")
-            in_ul = False
-        if in_ol:
-            result.append("</ol>")
-            in_ol = False
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Headings: # … ####
-        heading_match = re.match(r"^(#{1,4})\s+(.+)$", stripped)
-        if heading_match:
-            _close_lists()
-            level = len(heading_match.group(1))
-            result.append(f"<h{level}>{heading_match.group(2)}</h{level}>")
-            continue
-
-        # Unordered list items: - text
-        if stripped.startswith("- "):
-            if in_ol:
-                result.append("</ol>")
-                in_ol = False
-            if not in_ul:
-                result.append("<ul>")
-                in_ul = True
-            result.append(f"<li>{stripped[2:]}</li>")
-            continue
-
-        # Ordered list items: 1. text
-        ol_match = re.match(r"^\d+\.\s+(.+)$", stripped)
-        if ol_match:
-            if in_ul:
-                result.append("</ul>")
-                in_ul = False
-            if not in_ol:
-                result.append("<ol>")
-                in_ol = True
-            result.append(f"<li>{ol_match.group(1)}</li>")
-            continue
-
-        # Blank line or regular paragraph
-        if not stripped and (in_ul or in_ol):
-            # Blank line inside a list — keep the list open (markdown
-            # often separates list items with blank lines).
-            continue
-        _close_lists()
-        if stripped:
-            result.append(f"<p>{stripped}</p>")
-
-    _close_lists()
-    return "\n".join(result)
+    """Convert Markdown to HTML using markdown-it-py."""
+    return _md.render(text)
 
 
 def render_dashboard(
@@ -123,6 +61,7 @@ def render_dashboard(
         code_analysis=report.code_analysis.model_dump() if report.code_analysis else None,
         feasibility=report.feasibility.model_dump() if report.feasibility else None,
         quality_audit=report.quality_audit.model_dump() if report.quality_audit else None,
+        tech_stack_advisor=report.tech_stack_advisor.model_dump() if report.tech_stack_advisor else None,
         ux_design=report.ux_design.model_dump() if report.ux_design else None,
         screenshots=screenshots_data,
     )

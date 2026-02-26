@@ -1,6 +1,6 @@
 # Site Evolution Agents
 
-Multi-agent system that analyzes websites and codebases to produce prioritized evolution recommendations. Six specialized AI agents evaluate your site's design, code, performance, and competitive landscape, then synthesize actionable improvement recommendations.
+Multi-agent system that analyzes websites and codebases to produce prioritized evolution recommendations. Seven specialized AI agents evaluate your site's design, code, performance, and competitive landscape, then synthesize actionable improvement recommendations.
 
 ## Pipeline Architecture
 
@@ -16,6 +16,9 @@ Pass 2:  4D (Tech Feasibility) then 4E (Quality Audit)     [sequential]
          4F (UX Design Audit)
            |
          Synthesis -> Markdown report + HTML dashboard
+
+On-demand:
+         4G (Tech Stack Advisor) — evaluate specific features independently
 ```
 
 ### Agents
@@ -28,6 +31,7 @@ Pass 2:  4D (Tech Feasibility) then 4E (Quality Audit)     [sequential]
 | **4D** | Tech Feasibility | Assesses implementation cost, risk, and dependencies for each recommendation |
 | **4E** | Quality Audit | Runs accessibility (axe-core) and performance (Core Web Vitals) audits |
 | **4F** | UX Design Audit | Visually evaluates site screenshots for layout, typography, color, and navigation quality |
+| **4G** | Tech Stack Advisor | Produces simple vs. comprehensive implementation approaches with Mermaid architecture diagrams |
 
 ## Requirements
 
@@ -62,7 +66,46 @@ sea analyze --config config/analysis-config.yml --verbose
 
 # Validate config without running
 sea validate --config config/analysis-config.yml
+
+# Evaluate specific features (simple vs. comprehensive tech stack recommendations)
+sea feature --name "site search" --config config/analysis-config.yml
+
+# Evaluate multiple features at once
+sea feature --name "site search" --name "dark mode" --config config/analysis-config.yml
+
+# Evaluate features AND update the dashboard from a previous full run
+sea feature --name "site search" --config config/analysis-config.yml --patch-report ./output
+
+# Re-render the Markdown report and HTML dashboard from a saved report.json
+# (useful after template changes without re-running the full pipeline)
+sea render --output ./output
+
+# Ask an ad-hoc feasibility question against a prior run's codebase context
+sea followup --output ./output --question "What is the feasibility of a by-author listing?"
 ```
+
+### Feature Evaluation (`sea feature`)
+
+The `sea feature` command runs agents 4B (Code Analysis) and 4G (Tech Stack Advisor) without the full pipeline. For each named feature it produces:
+
+- A **simple approach** (minimal dependencies, fits existing stack)
+- A **comprehensive approach** (best-in-class, may require migration)
+- **Mermaid architecture diagrams** showing current state and per-approach impact
+- Effort estimates, pros/cons, and a recommended approach
+
+Results are written to `{output_directory}/feature-evaluation.json`.
+
+Use `--patch-report <dir>` to merge the 4G results into a prior `report.json` and re-render both the Markdown report and HTML dashboard in place.
+
+### Ad-hoc Feasibility Questions (`sea followup`)
+
+```bash
+sea followup --output ./output --question "What is the feasibility of a by-author listing?"
+```
+
+Runs agent 4D (Tech Feasibility) against the codebase captured in a prior `report.json` to answer an arbitrary feature question. The Q&A is appended to `report.json` and appears in a "Follow-Up Assessments" section on the dashboard. Multiple questions accumulate — each run appends rather than overwrites.
+
+Requires a prior `sea analyze` run (to have `report.json` and code analysis context).
 
 ## Configuration
 
@@ -89,10 +132,15 @@ output_directory: "./output"
 
 ## Output
 
-The pipeline generates two reports in the output directory:
+The pipeline generates reports in the output directory:
 
-- **`evolution-report.md`** — Structured Markdown report with all findings
-- **`evolution-dashboard.html`** — Self-contained HTML dashboard with collapsible sections, score visualizations, and screenshots
+| File | Description |
+|------|-------------|
+| `evolution-report.md` | Structured Markdown report with all findings |
+| `evolution-dashboard.html` | Self-contained HTML dashboard with collapsible sections, score visualizations, screenshots, and Mermaid architecture diagrams |
+| `report.json` | Full pipeline state — re-render anytime with `sea render` |
+| `feature-evaluation.json` | Output from `sea feature` runs |
+| `screenshots/` | Saved JPEG screenshots referenced by the dashboard |
 
 ## Development
 
@@ -118,9 +166,11 @@ src/sea/
     tech_feasibility/       # 4D — implementation assessment
     quality_audit/          # 4E — accessibility + performance
     ux_design/              # 4F — visual design evaluation
+    tech_stack_advisor/     # 4G — simple vs. comprehensive tech approaches + architecture diagrams
     orchestrator/           # Pipeline coordinator
     base.py                 # BaseAgent ABC
   schemas/                  # Pydantic models for all agent outputs
+    tech_stack.py           # TechStackAdvisorOutput + Mermaid normalization
   shared/
     claude_client.py        # OpenAI API wrapper + dry-run mock
     browser.py              # Playwright browser manager
@@ -128,7 +178,7 @@ src/sea/
     progress.py             # Rich TUI progress display
   output/
     markdown.py             # Markdown report generator
-    dashboard.py            # HTML dashboard generator
+    dashboard.py            # HTML dashboard generator (uses markdown-it-py)
     templates/              # Jinja2 templates
   cli.py                    # Typer CLI entry point
 ```

@@ -12,6 +12,7 @@ from sea.schemas.feasibility import FeasibilityOutput
 from sea.schemas.quality import QualityAuditOutput
 from sea.schemas.recommendations import Pass1Output, Pass2Output
 from sea.schemas.research import ComparativeResearchOutput
+from sea.schemas.tech_stack import TechStackAdvisorOutput
 from sea.schemas.ux_design import UXDesignOutput
 
 
@@ -32,6 +33,7 @@ class PipelineState(BaseModel):
     pass1: Pass1Output | None = None
     feasibility: FeasibilityOutput | None = None
     quality_audit: QualityAuditOutput | None = None
+    tech_stack_advisor: TechStackAdvisorOutput | None = None
     pass2: Pass2Output | None = None
     ux_design: UXDesignOutput | None = None
     screenshots: list[ScreenshotEntry] = []
@@ -47,5 +49,6 @@ class FinalReport(BaseModel):
     recommendations: Pass2Output | Pass1Output | None = None
     feasibility: FeasibilityOutput | None = None
     quality_audit: QualityAuditOutput | None = None
+    tech_stack_advisor: TechStackAdvisorOutput | None = None
     ux_design: UXDesignOutput | None = None
     screenshots: list[ScreenshotEntry] = []

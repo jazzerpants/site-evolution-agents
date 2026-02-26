@@ -9,9 +9,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
+import re
 from typing import Any, Callable, Awaitable
 
-from openai import AsyncOpenAI, RateLimitError
+from openai import AsyncOpenAI, APIConnectionError, APITimeoutError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +22,30 @@ MODEL = "gpt-4o"
 MAX_TOKENS = 16_384
 
 # Retry settings for rate-limit (429) errors
-_RATE_LIMIT_MAX_RETRIES = 5
-_RATE_LIMIT_BASE_DELAY = 5  # seconds
+_RATE_LIMIT_MAX_RETRIES = 8
+_RATE_LIMIT_BASE_DELAY = 5  # seconds — minimum floor for exponential backoff
+
+
+def _parse_retry_after(exc: RateLimitError) -> float | None:
+    """Extract the suggested retry delay from an OpenAI rate limit error.
+
+    Checks the ``Retry-After`` header first, then falls back to parsing
+    the "Please try again in Xs / Xms" substring from the error message.
+    Returns seconds as a float, or None if not found.
+    """
+    try:
+        headers = exc.response.headers  # type: ignore[union-attr]
+        if retry_after := headers.get("retry-after"):
+            return float(retry_after)
+    except (AttributeError, TypeError, ValueError):
+        pass
+
+    m = re.search(r"try again in (\d+(?:\.\d+)?)\s*(ms|s)\b", str(exc), re.IGNORECASE)
+    if m:
+        value = float(m.group(1))
+        return value / 1000 if m.group(2).lower() == "ms" else value
+
+    return None
 
 
 ToolHandler = Callable[[str, dict[str, Any]], Awaitable["str | list[str]"]]
@@ -29,6 +53,9 @@ ToolHandler = Callable[[str, dict[str, Any]], Awaitable["str | list[str]"]]
 
 ProgressCallback = Callable[[str], None]
 """Called with a short status message on each loop iteration."""
+
+TokensCallback = Callable[[int, int], None]
+"""Called with (input_tokens, output_tokens) when a completion finishes."""
 
 
 def _claude_tools_to_openai(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -65,6 +92,10 @@ class ClaudeClient:
     async def _call_with_retry(self, **kwargs: Any) -> Any:
         """Call chat.completions.create with exponential backoff on 429 errors.
 
+        Waits at least as long as OpenAI's suggested retry-after time (parsed
+        from the error message or header), uses exponential backoff as a floor,
+        and adds ±25% jitter so parallel agents don't slam the API in sync.
+
         Fails immediately if the error indicates the request itself exceeds
         the token limit (retrying won't help — the payload must shrink).
         """
@@ -73,18 +104,42 @@ class ClaudeClient:
                 return await self._client.chat.completions.create(**kwargs)
             except RateLimitError as exc:
                 msg = str(exc).lower()
-                # "Request too large" means the payload exceeds TPM — waiting
-                # won't fix it, so don't waste time retrying.
-                if "request too large" in msg or "requested" in msg and "limit" in msg:
+                # "Request too large" / "context_length_exceeded" means the
+                # payload itself is too big — retrying won't help.
+                if "request too large" in msg or "context_length_exceeded" in msg:
                     logger.error(
                         "Request exceeds token limit (not retryable): %s", exc,
                     )
                     raise
                 if attempt == _RATE_LIMIT_MAX_RETRIES - 1:
                     raise
-                delay = _RATE_LIMIT_BASE_DELAY * (2 ** attempt)
+
+                # Use OpenAI's suggested wait time when available; fall back to
+                # exponential backoff.  Add ±25% jitter so concurrent agents
+                # (e.g. 4A + 4B) don't retry in lockstep.
+                backoff = _RATE_LIMIT_BASE_DELAY * (2 ** attempt)
+                suggested = _parse_retry_after(exc)
+                base_delay = max(suggested or 0.0, backoff)
+                jitter = random.uniform(-0.25 * base_delay, 0.25 * base_delay)
+                delay = max(1.0, base_delay + jitter)
+
                 logger.warning(
-                    "Rate limited (429), retrying in %ds (attempt %d/%d): %s",
+                    "Rate limited (429), retrying in %.1fs (attempt %d/%d, "
+                    "suggested=%.1fs, backoff=%ds): %s",
+                    delay, attempt + 1, _RATE_LIMIT_MAX_RETRIES,
+                    suggested or 0.0, backoff, exc,
+                )
+                await asyncio.sleep(delay)
+            except (APIConnectionError, APITimeoutError) as exc:
+                if attempt == _RATE_LIMIT_MAX_RETRIES - 1:
+                    raise
+                # Transient network / TLS errors — short exponential backoff,
+                # capped at ~40 s, with ±25% jitter.
+                backoff = _RATE_LIMIT_BASE_DELAY * (2 ** min(attempt, 3))
+                jitter = random.uniform(-0.25 * backoff, 0.25 * backoff)
+                delay = max(2.0, backoff + jitter)
+                logger.warning(
+                    "Connection error, retrying in %.1fs (attempt %d/%d): %s",
                     delay, attempt + 1, _RATE_LIMIT_MAX_RETRIES, exc,
                 )
                 await asyncio.sleep(delay)
@@ -102,6 +157,7 @@ class ClaudeClient:
         tool_handler: ToolHandler,
         max_iterations: int = 30,
         on_progress: ProgressCallback | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         """Run the tool-use loop until the model produces a final text response.
 
@@ -117,6 +173,8 @@ class ClaudeClient:
 
         _max_nudges = 2  # times to nudge model back after non-JSON text
         _nudge_count = 0
+        _total_input_tokens = 0
+        _total_output_tokens = 0
 
         for iteration in range(1, max_iterations + 1):
             if on_progress:
@@ -137,6 +195,10 @@ class ClaudeClient:
                 kwargs["response_format"] = {"type": "json_object"}
 
             response = await self._call_with_retry(**kwargs)
+            usage = getattr(response, "usage", None)
+            if usage:
+                _total_input_tokens += getattr(usage, "prompt_tokens", 0)
+                _total_output_tokens += getattr(usage, "completion_tokens", 0)
             choice = response.choices[0]
             message = choice.message
 
@@ -175,35 +237,41 @@ class ClaudeClient:
                     })
                     continue
 
+                if on_tokens:
+                    on_tokens(_total_input_tokens, _total_output_tokens)
                 return content
 
             # Append assistant message (with tool_calls) to history
             oai_messages.append(message.model_dump())
 
-            # Execute each tool call and feed results back.
-            # Image tiles (list[str]) can't go in tool messages — OpenAI only
-            # allows image_url in user messages.  So we return a text summary
-            # as the tool result and queue the images in a user message that
-            # gets flushed after all tool results for this turn.
-            _pending_image_messages: list[dict[str, Any]] = []
-            for tool_call in message.tool_calls:
-                fn = tool_call.function
-                tool_name = fn.name
+            # Execute all tool calls for this turn concurrently, then process
+            # results in order.  Image tiles (list[str]) can't go in tool
+            # messages — OpenAI only allows image_url in user messages.  So we
+            # return a text summary as the tool result and queue the images in
+            # a user message that gets flushed after all tool results.
+            async def _run_tool(tc: Any) -> tuple[Any, str, dict, "str | list[str]"]:
+                fn = tc.function
+                t_name = fn.name
                 try:
-                    tool_input = json.loads(fn.arguments)
+                    t_input = json.loads(fn.arguments)
                 except json.JSONDecodeError:
-                    tool_input = {}
-
-                logger.info("Tool call: %s(%s)", tool_name, fn.arguments[:200])
+                    t_input = {}
+                logger.info("Tool call: %s(%s)", t_name, fn.arguments[:200])
                 if on_progress:
-                    on_progress(f"Running tool: {tool_name}")
-
+                    on_progress(f"Running tool: {t_name}")
                 try:
-                    result = await tool_handler(tool_name, tool_input)
+                    t_result = await tool_handler(t_name, t_input)
                 except Exception as exc:
-                    logger.warning("Tool %s failed: %s", tool_name, exc)
-                    result = f"Error: {exc}"
+                    logger.warning("Tool %s failed: %s", t_name, exc)
+                    t_result = f"Error: {exc}"
+                return tc, t_name, t_input, t_result
 
+            tool_results = await asyncio.gather(
+                *(_run_tool(tc) for tc in message.tool_calls)
+            )
+
+            _pending_image_messages: list[dict[str, Any]] = []
+            for tool_call, tool_name, tool_input, result in tool_results:
                 if isinstance(result, list):
                     # Image tiles — send first few to OpenAI at detail=low
                     # (85 tokens each) for visual comparison.  All tiles are
@@ -268,6 +336,7 @@ class ClaudeClient:
         system: str,
         user_message: str,
         json_mode: bool = True,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         """Single request/response with no tools.
 
@@ -286,6 +355,9 @@ class ClaudeClient:
             kwargs["response_format"] = {"type": "json_object"}
 
         response = await self._call_with_retry(**kwargs)
+        usage = getattr(response, "usage", None)
+        if on_tokens and usage:
+            on_tokens(getattr(usage, "prompt_tokens", 0), getattr(usage, "completion_tokens", 0))
         return response.choices[0].message.content or ""
 
     # ------------------------------------------------------------------
@@ -298,6 +370,7 @@ class ClaudeClient:
         system: str,
         content: list[dict[str, Any]],
         json_mode: bool = True,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         """Single request/response with multipart content (text + images).
 
@@ -319,6 +392,9 @@ class ClaudeClient:
             kwargs["response_format"] = {"type": "json_object"}
 
         response = await self._call_with_retry(**kwargs)
+        usage = getattr(response, "usage", None)
+        if on_tokens and usage:
+            on_tokens(getattr(usage, "prompt_tokens", 0), getattr(usage, "completion_tokens", 0))
         return response.choices[0].message.content or ""
 
 
@@ -433,6 +509,7 @@ class DryRunClient:
         tool_handler: ToolHandler,
         max_iterations: int = 30,
         on_progress: ProgressCallback | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         agent_key = self._detect_agent(system)
         script = _DRY_RUN_TOOL_SCRIPTS.get(agent_key, [])
@@ -460,6 +537,7 @@ class DryRunClient:
         system: str,
         user_message: str,
         json_mode: bool = True,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         key = self._detect_agent(system)
         # 4C uses simple_completion for both passes — distinguish by input
@@ -476,6 +554,7 @@ class DryRunClient:
         system: str,
         content: list[dict[str, Any]],
         json_mode: bool = True,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         key = self._detect_agent(system)
         return _DRY_RUN_JSON.get(key, "{}")

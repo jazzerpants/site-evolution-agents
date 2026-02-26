@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Evolution Report: Example App</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface-hover: #334155;
+    --border: #475569; --text: #e2e8f0; --text-muted: #94a3b8;
+    --accent: #38bdf8; --success: #4ade80; --warning: #fbbf24; --danger: #f87171;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2rem; margin-bottom: 0.5rem; color: var(--accent); }
+  h2 { font-size: 1.5rem; margin: 2rem 0 1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  .meta { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem; }
+
+  /* Collapsible sections */
+  .section { background: var(--surface); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
+  .section-header { padding: 1rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  .section-header:hover { background: var(--surface-hover); }
+  .section-header .arrow { transition: transform 0.2s; font-size: 0.75rem; color: var(--text-muted); }
+  .section.collapsed .section-body { display: none; }
+  .section.collapsed .arrow { transform: rotate(-90deg); }
+  .section-body { padding: 0 1.25rem 1.25rem; }
+
+  /* Cards */
+  .card { background: var(--surface-hover); border-radius: var(--radius); padding: 1rem; margin-bottom: 0.75rem; border-left: 3px solid var(--accent); }
+  .card-title { font-weight: 600; margin-bottom: 0.25rem; }
+  .card-meta { font-size: 0.8rem; color: var(--text-muted); }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-right: 0.25rem; }
+  .badge-easy, .badge-low, .badge-good, .badge-quick-win { background: rgba(74,222,128,0.15); color: var(--success); }
+  .badge-moderate, .badge-medium, .badge-needs-improvement, .badge-medium-term { background: rgba(251,191,36,0.15); color: var(--warning); }
+  .badge-hard, .badge-high, .badge-poor, .badge-long-term { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .badge-requires_migration, .badge-critical, .badge-serious { background: rgba(248,113,113,0.25); color: var(--danger); }
+  .badge-minor, .badge-suggestion { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+  .badge-major { background: rgba(251,191,36,0.15); color: var(--warning); }
+
+  /* Score bars */
+  .scores { display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; }
+  .score-item { flex: 1; min-width: 120px; }
+  .score-label { font-size: 0.75rem; color: var(--text-muted); }
+  .score-bar { height: 6px; background: var(--surface); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .score-fill.value { background: var(--accent); }
+  .score-fill.novelty { background: var(--warning); }
+  .score-fill.feasibility { background: var(--success); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; }
+  th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Filters */
+  .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filter-btn { padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; transition: all 0.15s; }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* Executive summary */
+  .executive { background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid var(--accent); }
+  .executive p { margin-bottom: 0.75rem; }
+  .executive ul { padding-left: 1.25rem; }
+  .executive li { margin-bottom: 0.25rem; }
+
+  /* Tech stack advisor */
+  .feature-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+  .feature-tab { padding: 0.35rem 0.85rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; transition: all 0.15s; }
+  .feature-tab:hover, .feature-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .feature-panel { display: none; }
+  .feature-panel.active { display: block; }
+  .diagram-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
+  .diagram-tab { padding: 0.25rem 0.65rem; border-radius: var(--radius) var(--radius) 0 0; border: 1px solid var(--border); border-bottom: none; background: var(--surface); color: var(--text-muted); cursor: pointer; font-size: 0.75rem; transition: all 0.15s; }
+  .diagram-tab.active { background: var(--surface-hover); color: var(--text); }
+  .diagram-panel { display: none; background: var(--surface-hover); border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 1rem; border: 1px solid var(--border); }
+  .diagram-panel.active { display: block; }
+  .diagram-summary { font-size: 0.875rem; line-height: 1.6; margin-bottom: 0.75rem; color: var(--text); }
+  .diagram-legend { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-keep { background: #4ade80; }
+  .legend-issue { background: #f87171; }
+  .legend-modify { background: #fbbf24; }
+  .legend-new { background: #38bdf8; }
+  .mermaid-wrap { background: #fff; border-radius: var(--radius); padding: 1rem; overflow-x: auto; }
+  .mermaid-wrap .mermaid { min-height: 80px; }
+  .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+  @media (max-width: 700px) { .approach-grid { grid-template-columns: 1fr; } }
+  .approach-card { background: var(--surface-hover); border-radius: var(--radius); padding: 0.85rem; border-top: 3px solid var(--accent); }
+  .approach-card.comprehensive { border-top-color: var(--warning); }
+  .approach-card h4 { font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .approach-card .kv { font-size: 0.8rem; display: flex; gap: 0.5rem; margin-bottom: 0.2rem; }
+  .approach-card .kv span:first-child { color: var(--text-muted); min-width: 90px; }
+  .parity-banner { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.3); border-radius: var(--radius); padding: 0.6rem 0.9rem; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent); }
+  .rec-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.4rem; background: rgba(56,189,248,0.15); color: var(--accent); vertical-align: middle; }
+
+  .footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0 1rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+</script>
+</head>
+<body>
+<div class="container">
+  <h1>Site Evolution Report</h1>
+  <div class="meta">Example App &mdash; Generated 2026-01-01T12:00:00</div>
+
+  
+  <div class="executive">
+    <p>Example App has a solid technical foundation but lags competitors on two high-visibility features: site search and dark mode.</p>
+<p><strong>Top priorities:</strong></p>
+<ul>
+<li><strong>Add Site Search</strong> (3-5 days, Fuse.js) — both competitors offer it; high user value signal</li>
+<li><strong>Add Dark Mode</strong> (1-2 days) — quick win enabled by existing CSS variable infrastructure</li>
+<li><strong>Fix Mobile Navigation</strong> (1-2 days) — sidebar overlaps content at 768px; 60% of traffic is mobile</li>
+</ul>
+<p>All three recommendations are low-risk and can be delivered without architectural changes. Start with Dark Mode and Mobile Nav in parallel, then ship Search.</p>
+  </div>
+  
+
+  
+  
+  <div class="section" id="recommendations">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Recommendations (3)</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterRecs('all', this)">All</button>
+        <button class="filter-btn" onclick="filterRecs('quick-win', this)">Quick Wins</button>
+        <button class="filter-btn" onclick="filterRecs('medium-term', this)">Medium Term</button>
+        <button class="filter-btn" onclick="filterRecs('long-term', this)">Long Term</button>
+      </div>
+      
+      <div class="card rec-card" data-category="medium-term">
+        <div class="card-title">#1: Add Site Search <code style="color:var(--text-muted);font-size:0.8rem">REC-001</code></div>
+        <div class="card-meta">
+          <span class="badge badge-medium-term">medium-term</span>
+          <span class="badge badge-low">low complexity</span>
+        </div>
+        <p style="margin-top:0.5rem;font-size:0.9rem;">Implement full-text search so users can find content quickly. Currently a major gap vs. both competitors.</p>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;"><em>Both competitors offer search. High user value signal from analytics showing users hitting dead ends.</em></p>
+        <div class="scores">
+          <div class="score-item">
+            <div class="score-label">User Value: 9/10</div>
+            <div class="score-bar"><div class="score-fill value" style="width:90%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Novelty: 4/10</div>
+            <div class="score-bar"><div class="score-fill novelty" style="width:40%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Feasibility: 8/10</div>
+            <div class="score-bar"><div class="score-fill feasibility" style="width:80%"></div></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card rec-card" data-category="quick-win">
+        <div class="card-title">#2: Add Dark Mode <code style="color:var(--text-muted);font-size:0.8rem">REC-002</code></div>
+        <div class="card-meta">
+          <span class="badge badge-quick-win">quick-win</span>
+          <span class="badge badge-low">low complexity</span>
+        </div>
+        <p style="margin-top:0.5rem;font-size:0.9rem;">Provide a light/dark theme toggle. Acme Search already offers this; user demand is increasing.</p>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;"><em>CSS variable system already in place — low implementation cost for high perceived value.</em></p>
+        <div class="scores">
+          <div class="score-item">
+            <div class="score-label">User Value: 7/10</div>
+            <div class="score-bar"><div class="score-fill value" style="width:70%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Novelty: 3/10</div>
+            <div class="score-bar"><div class="score-fill novelty" style="width:30%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Feasibility: 9/10</div>
+            <div class="score-bar"><div class="score-fill feasibility" style="width:90%"></div></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card rec-card" data-category="quick-win">
+        <div class="card-title">#3: Improve Mobile Navigation <code style="color:var(--text-muted);font-size:0.8rem">REC-003</code></div>
+        <div class="card-meta">
+          <span class="badge badge-quick-win">quick-win</span>
+          <span class="badge badge-low">low complexity</span>
+        </div>
+        <p style="margin-top:0.5rem;font-size:0.9rem;">Redesign the sidebar navigation for mobile with a slide-in drawer pattern.</p>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;"><em>60% of traffic is mobile. Current sidebar collapses poorly on small screens.</em></p>
+        <div class="scores">
+          <div class="score-item">
+            <div class="score-label">User Value: 8/10</div>
+            <div class="score-bar"><div class="score-fill value" style="width:80%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Novelty: 2/10</div>
+            <div class="score-bar"><div class="score-fill novelty" style="width:20%"></div></div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">Feasibility: 9/10</div>
+            <div class="score-bar"><div class="score-fill feasibility" style="width:90%"></div></div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="research">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Comparative Research</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      
+      <h3>Competitors</h3>
+      
+      <div class="card">
+        <div class="card-title">Acme Search <a href="https://acme.example.com" style="color:var(--accent);font-size:0.85rem;">https://acme.example.com</a></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);">Same market segment</p>
+        <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>+</strong> Fast site search, Dark mode, Mobile-first design</p>
+        <p style="font-size:0.85rem;"><strong>-</strong> Limited content depth</p>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">BetterDocs <a href="https://betterdocs.example.com" style="color:var(--accent);font-size:0.85rem;">https://betterdocs.example.com</a></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);">Similar content structure</p>
+        <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>+</strong> Excellent navigation, Full-text search</p>
+        <p style="font-size:0.85rem;"><strong>-</strong> Slow initial load</p>
+      </div>
+      
+      
+
+      
+      <h3>Gaps</h3>
+      
+      <div class="card">
+        <span class="badge badge-high">high</span>
+        No site search
+        <span style="font-size:0.8rem;color:var(--text-muted);"> (Acme Search, BetterDocs)</span>
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-medium">medium</span>
+        No dark mode
+        <span style="font-size:0.8rem;color:var(--text-muted);"> (Acme Search)</span>
+      </div>
+      
+      
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="code-analysis">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Code Analysis</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      
+      <h3>Tech Stack</h3>
+      <table>
+        <thead><tr><th>Technology</th><th>Category</th><th>Version</th><th>UX Pros</th><th>UX Cons</th></tr></thead>
+        <tbody>
+        
+        <tr><td>Next.js</td><td>framework</td><td>14</td><td>Fast page loads, SSR/SSG support</td><td>Large bundle without optimization</td></tr>
+        
+        <tr><td>Tailwind CSS</td><td>styling</td><td>3</td><td>Consistent spacing, Responsive utilities</td><td></td></tr>
+        
+        <tr><td>React</td><td>ui-library</td><td>18</td><td>Component reuse, Rich ecosystem</td><td></td></tr>
+        
+        </tbody>
+      </table>
+      
+
+      
+      <h3>Tech Debt</h3>
+      
+      <div class="card">
+        <span class="badge badge-medium">medium</span>
+        Global CSS overrides conflict with Tailwind utilities in 3 components
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: Migrate to Tailwind-only styling</span>
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-low">low</span>
+        Large synchronous imports in Header increase TTI
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: Use dynamic imports for non-critical icons</span>
+      </div>
+      
+      
+
+      <p style="margin-top:1rem;font-size:0.9rem;">Well-structured Next.js 14 app with App Router. TypeScript throughout. Tailwind for styling with a nascent design token system. High extensibility score — adding new features like search or dark mode should be straightforward.</p>
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="feasibility">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Feasibility Assessment</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead><tr><th>Rec ID</th><th>Rating</th><th>Cost</th><th>Dev Days</th><th>Risk</th></tr></thead>
+        <tbody>
+        
+        <tr>
+          <td>REC-001</td>
+          <td><span class="badge badge-moderate">moderate</span></td>
+          <td>medium</td>
+          <td>3-5 days</td>
+          <td><span class="badge badge-low">low</span></td>
+        </tr>
+        
+        <tr>
+          <td>REC-002</td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td>small</td>
+          <td>1-2 days</td>
+          <td><span class="badge badge-low">low</span></td>
+        </tr>
+        
+        <tr>
+          <td>REC-003</td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td>small</td>
+          <td>1-2 days</td>
+          <td><span class="badge badge-low">low</span></td>
+        </tr>
+        
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="ux-design">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">UX &amp; Design</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      
+      <div class="card" style="border-left-color:var(--accent);">
+        <div class="card-title">Overall Impression</div>
+        <p style="font-size:0.9rem;margin-top:0.25rem;">A well-executed, professional design that prioritizes content readability. The primary opportunities are mobile navigation and dark mode — both are quick wins given the existing infrastructure.</p>
+        
+        <h3 style="margin-top:0.75rem;">Strengths</h3>
+        <ul style="padding-left:1.25rem;font-size:0.85rem;">
+          
+          <li>Clean, professional aesthetic with consistent brand color application</li>
+          
+          <li>Generous whitespace makes content easy to scan</li>
+          
+          <li>Strong H1-H3 typographic hierarchy</li>
+          
+          <li>Consistent use of CSS custom properties enables easy theming</li>
+          
+        </ul>
+        
+      </div>
+      
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        
+        <div class="card">
+          <div class="card-title">Layout &amp; Visual Hierarchy</div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Visual Hierarchy:</strong> Strong — primary content is clearly distinguished from navigation</p>
+          <p style="font-size:0.85rem;"><strong>Whitespace:</strong> Generous whitespace around content blocks improves readability</p>
+          <p style="font-size:0.85rem;"><strong>Grid:</strong> 12-column grid applied consistently; minor inconsistencies in article card padding</p>
+          <p style="font-size:0.85rem;"><strong>Responsive:</strong> Desktop layout is polished; mobile sidebar collapses awkwardly and requires attention</p>
+        </div>
+        
+
+        
+        <div class="card">
+          <div class="card-title">Navigation</div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Clarity:</strong> Top nav is clear; sidebar labels are descriptive</p>
+          <p style="font-size:0.85rem;"><strong>IA:</strong> Logical section grouping; max 2 levels deep</p>
+          <p style="font-size:0.85rem;"><strong>Mobile:</strong> Sidebar overlaps content at 768px breakpoint; needs a drawer pattern</p>
+        </div>
+        
+
+        
+        <div class="card">
+          <div class="card-title">Typography</div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Readability:</strong> Body text at 16px with 1.6 line-height is comfortable for long-form reading</p>
+          <p style="font-size:0.85rem;"><strong>Hierarchy:</strong> H1-H3 scale is clear; H4 and below are under-differentiated</p>
+          <p style="font-size:0.85rem;"><strong>Consistency:</strong> Minor inconsistency in article card titles (some use semibold, some regular)</p>
+        </div>
+        
+
+        
+        <div class="card">
+          <div class="card-title">Color</div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;"><strong>Palette:</strong> Neutral palette with a single brand accent — cohesive and professional</p>
+          <p style="font-size:0.85rem;"><strong>Contrast:</strong> Most text meets WCAG AA. Placeholder text and muted labels need darkening.</p>
+          <p style="font-size:0.85rem;"><strong>Brand:</strong> Brand color applied consistently to CTAs and active states</p>
+          <p style="font-size:0.85rem;"><strong>Dark Mode:</strong> No dark mode — significant gap vs. competitor Acme Search</p>
+        </div>
+        
+      </div>
+
+      
+      <h3>Issues (3)</h3>
+      
+      <div class="card">
+        <span class="badge badge-major">major</span>
+        <span class="badge">navigation</span>
+        Sidebar collapses poorly on mobile — overlaps content at 768px
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Recommendation: Implement slide-in drawer with overlay for mobile breakpoints</span>
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Competitors doing better: Acme Search, BetterDocs</span>
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-major">major</span>
+        <span class="badge">color</span>
+        No dark mode option increases eye strain for evening readers
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Recommendation: Add CSS-variable-based dark theme with localStorage persistence</span>
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Competitors doing better: Acme Search</span>
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-minor">minor</span>
+        <span class="badge">typography</span>
+        H4 and H5 headings are visually identical — hierarchy breaks down in deeply nested content
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Recommendation: Add 1-2px font-size difference and letter-spacing variation to lower heading levels</span>
+        
+      </div>
+      
+      
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="tech-stack">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Tech Stack Recommendations (2 features)</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      
+      <p style="font-size:0.9rem;margin-bottom:1rem;">Two features evaluated. Site Search requires 3-5 days with Fuse.js (simple) or 1-2 weeks with Algolia (comprehensive). Dark Mode is a 1-2 day quick win — the existing CSS variable system makes it trivial.</p>
+      
+
+      
+      <div class="feature-tabs">
+        
+        <button class="feature-tab active"
+                onclick="showFeature('0', this)">
+          Site Search
+        </button>
+        
+        <button class="feature-tab "
+                onclick="showFeature('1', this)">
+          Dark Mode
+        </button>
+        
+      </div>
+
+      
+      
+      
+      <div class="feature-panel active" id="feat-panel-0">
+
+        
+        <div class="parity-banner">
+          ⚡ Competitor parity gap — <strong>Acme Search, BetterDocs</strong> already offer this feature
+        </div>
+        
+
+        
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">Next.js static site with App Router — client-side search fits natively with no server changes. Algolia would require a new API route.</p>
+        
+
+        
+        
+        <div class="diagram-tabs" id="dtabs-0">
+          
+          <button class="diagram-tab active"
+                  onclick="showDiagram('0', '0', this)">
+            📍 Current
+          </button>
+          
+          <button class="diagram-tab "
+                  onclick="showDiagram('0', '1', this)">
+            🟢 Simple
+          </button>
+          
+          <button class="diagram-tab "
+                  onclick="showDiagram('0', '2', this)">
+            🔵 Comprehensive
+          </button>
+          
+        </div>
+        
+        <div class="diagram-panel active" id="dpanel-0-0">
+          <p class="diagram-summary">The current site is a well-structured static Next.js app on Vercel (green). The only gap for search is the complete absence of any search capability (red) — no index, no UI, no way for users to find content by keyword. Everything else is healthy and reusable.</p>
+
+          <div class="diagram-legend">
+            
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: Next.js App Router, Static File Server, Tailwind CSS, Vercel CDN</span></div>
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-issue"></div><span>Issues: No Search Capability</span></div>
+            
+            
+            
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-0-0">flowchart TD
+    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a
+    classDef issue fill:#f87171,stroke:#ef4444,color:#0f172a
+    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a
+    appRouter[Next.js App Router]:::keep
+    staticFiles[Static File Server]:::keep
+    noSearch[No Search Capability]:::issue
+    tailwind[Tailwind CSS]:::keep
+    vercel[Vercel CDN]:::keep
+    appRouter --> staticFiles
+    appRouter --> noSearch
+    appRouter --> tailwind
+    staticFiles --> vercel</div>
+          </div>
+        </div>
+        
+        <div class="diagram-panel " id="dpanel-0-1">
+          <p class="diagram-summary">The blue items show what gets built: a JSON search index generated at build time, Fuse.js to query it in-browser, and a Search UI component wired into the header. All green items stay exactly as-is — no server changes, no new infrastructure, no migration. Ships in 2-3 days.</p>
+
+          <div class="diagram-legend">
+            
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: Next.js App Router, Static File Server, Tailwind CSS, Vercel CDN</span></div>
+            
+            
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-new"></div><span>New: Build Index Script, JSON Search Index, Fuse.js Client, Search UI Component</span></div>
+            
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-0-1">flowchart TD
+    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a
+    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a
+    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a
+    appRouter[Next.js App Router]:::keep
+    staticFiles[Static File Server]:::keep
+    tailwind[Tailwind CSS]:::keep
+    vercel[Vercel CDN]:::keep
+    buildScript[Build Index Script]:::new
+    jsonIndex[JSON Search Index]:::new
+    fuseJs[Fuse.js Client]:::new
+    searchUI[Search UI Component]:::new
+    appRouter --> tailwind
+    appRouter --> searchUI
+    staticFiles --> vercel
+    staticFiles --> jsonIndex
+    buildScript -->|generates| jsonIndex
+    searchUI --> fuseJs
+    fuseJs --> jsonIndex</div>
+          </div>
+        </div>
+        
+        <div class="diagram-panel " id="dpanel-0-2">
+          <p class="diagram-summary">Blue items: a hosted Algolia index (syncs on every deploy), the react-instantsearch SDK, a richer search UI with filters, and a lightweight API proxy. Yellow: CI/CD needs one-time update to push content to Algolia. Everything green is untouched. Delivers typo tolerance, analytics, and infinite scale — at $50-500/month and 1-2 weeks of work.</p>
+
+          <div class="diagram-legend">
+            
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: Next.js App Router, Static File Server, Tailwind CSS, Vercel CDN</span></div>
+            
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-modify"></div><span>Modify: CI/CD Pipeline</span></div>
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-new"></div><span>New: Algolia Index, react-instantsearch, Search UI with Facets, /api/search Proxy</span></div>
+            
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-0-2">flowchart TD
+    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a
+    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a
+    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a
+    appRouter[Next.js App Router]:::keep
+    staticFiles[Static File Server]:::keep
+    tailwind[Tailwind CSS]:::keep
+    vercel[Vercel CDN]:::keep
+    cicd[CI/CD Pipeline]:::modify
+    algoliaIndex[Algolia Index]:::new
+    algoliaSDK[react-instantsearch]:::new
+    searchUI[Search UI with Facets]:::new
+    apiProxy[Search API Proxy]:::new
+    appRouter --> tailwind
+    appRouter --> searchUI
+    staticFiles --> vercel
+    cicd -->|sync on deploy| algoliaIndex
+    searchUI --> algoliaSDK
+    algoliaSDK --> apiProxy
+    apiProxy --> algoliaIndex</div>
+          </div>
+        </div>
+        
+        
+
+        
+        <div class="approach-grid" style="margin-top:1rem;">
+          <div class="approach-card">
+            <h4>🟢 Simple Approach <span class="badge badge-fits_as_is">fits_as_is</span></h4>
+            <p style="font-size:0.8rem;margin-bottom:0.5rem;">Client-side full-text search using Fuse.js over a pre-built JSON index generated at build time</p>
+            <div class="kv"><span>Stack</span><span>Fuse.js, Next.js build script</span></div>
+            <div class="kv"><span>Effort</span><span>2-3 days</span></div>
+            <div class="kv"><span>New deps</span><span>fuse.js</span></div>
+            <div class="kv"><span>Pros</span><span>No server required · Zero latency after initial load · Easy to maintain</span></div>
+            <div class="kv"><span>Cons</span><span>Limited to indexed content only · No analytics on queries · Poor for large corpora</span></div>
+          </div>
+
+          
+          <div class="approach-card comprehensive">
+            <h4>🔵 Comprehensive Approach <span class="badge badge-minor_changes">minor_changes</span></h4>
+            <p style="font-size:0.8rem;margin-bottom:0.5rem;">Algolia-hosted search with typo tolerance, facets, and query analytics</p>
+            <div class="kv"><span>Stack</span><span>Algolia, react-instantsearch, Next.js API Route</span></div>
+            <div class="kv"><span>Effort</span><span>1-2 weeks</span></div>
+            <div class="kv"><span>New deps</span><span>algoliasearch, react-instantsearch</span></div>
+            <div class="kv"><span>Arch changes</span><span>Add Algolia index sync step to CI/CD pipeline · Add /api/search proxy route for server-side query proxying</span></div>
+            <div class="kv"><span>Pros</span><span>Sub-10ms search · Typo tolerance · Full analytics dashboard · Scales to millions of pages</span></div>
+            <div class="kv"><span>Cons</span><span>$50-500/month recurring cost · Vendor lock-in · CI/CD changes required</span></div>
+          </div>
+          
+        </div>
+
+        
+        <div class="card" style="margin-top:0.75rem;border-left-color:var(--success);">
+          <div class="card-meta">Recommendation: <strong>Simple</strong></div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;">Current site has under 500 pages. Fuse.js delivers adequate search quality at zero cost with no architectural changes. Revisit Algolia if content grows past 1,000 pages or query analytics become important.</p>
+        </div>
+        
+
+      </div>
+      
+      
+      <div class="feature-panel " id="feat-panel-1">
+
+        
+        <div class="parity-banner">
+          ⚡ Competitor parity gap — <strong>Acme Search</strong> already offer this feature
+        </div>
+        
+
+        
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">CSS variable system already in place — dark mode is a natural extension of the existing theming infrastructure.</p>
+        
+
+        
+        
+        <div class="diagram-tabs" id="dtabs-1">
+          
+          <button class="diagram-tab active"
+                  onclick="showDiagram('1', '0', this)">
+            📍 Current
+          </button>
+          
+          <button class="diagram-tab "
+                  onclick="showDiagram('1', '1', this)">
+            🟢 Simple
+          </button>
+          
+        </div>
+        
+        <div class="diagram-panel active" id="dpanel-1-0">
+          <p class="diagram-summary">The site already uses CSS custom properties (variables) for colors — that foundation is solid (green). What&#39;s missing is a theme toggle and dark variable definitions. No existing component handles this (red). The good news: no architectural changes are needed, just additions.</p>
+
+          <div class="diagram-legend">
+            
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: CSS Custom Properties, Tailwind CSS, Header Component, Sidebar Component</span></div>
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-issue"></div><span>Issues: No Theme Toggle</span></div>
+            
+            
+            
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-1-0">flowchart TD
+    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a
+    classDef issue fill:#f87171,stroke:#ef4444,color:#0f172a
+    cssVars[CSS Custom Properties]:::keep
+    tailwind[Tailwind CSS]:::keep
+    header[Header Component]:::keep
+    sidebar[Sidebar Component]:::keep
+    noTheme[No Theme Toggle]:::issue
+    noTheme -. missing .-> header
+    cssVars --> tailwind
+    tailwind --> header
+    tailwind --> sidebar</div>
+          </div>
+        </div>
+        
+        <div class="diagram-panel " id="dpanel-1-1">
+          <p class="diagram-summary">Three new items (blue): a useTheme hook that reads/writes localStorage, a ThemeToggle button placed in the Header, and the dark CSS variable values added to the stylesheet. Two existing items need small updates (yellow): CSS variables get dark-mode values, Header gets the toggle button. Everything else is untouched. Ships in 1-2 days.</p>
+
+          <div class="diagram-legend">
+            
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: Tailwind CSS, Sidebar Component</span></div>
+            
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-modify"></div><span>Modify: CSS Custom Properties, Header Component</span></div>
+            
+            
+            <div class="legend-item"><div class="legend-dot legend-new"></div><span>New: useTheme Hook, ThemeToggle Button, localStorage</span></div>
+            
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-1-1">flowchart TD
+    classDef keep fill:#4ade80,stroke:#22c55e,color:#0f172a
+    classDef modify fill:#fbbf24,stroke:#f59e0b,color:#0f172a
+    classDef new fill:#38bdf8,stroke:#0ea5e9,color:#0f172a
+    cssVars[CSS Custom Properties]:::modify
+    tailwind[Tailwind CSS]:::keep
+    header[Header Component]:::modify
+    sidebar[Sidebar Component]:::keep
+    themeHook[useTheme Hook]:::new
+    themeToggle[ThemeToggle Button]:::new
+    localStorage[localStorage]:::new
+    themeHook --> localStorage
+    themeHook -->|sets data-theme| cssVars
+    header --> themeToggle
+    themeToggle --> themeHook
+    cssVars --> tailwind
+    tailwind --> sidebar</div>
+          </div>
+        </div>
+        
+        
+
+        
+        <div class="approach-grid" style="margin-top:1rem;">
+          <div class="approach-card">
+            <h4>🟢 Simple Approach <span class="badge badge-fits_as_is">fits_as_is</span></h4>
+            <p style="font-size:0.8rem;margin-bottom:0.5rem;">CSS variable swap using a data-theme attribute toggled by a localStorage-backed React hook</p>
+            <div class="kv"><span>Stack</span><span>CSS Custom Properties, React useState/useEffect, localStorage</span></div>
+            <div class="kv"><span>Effort</span><span>1-2 days</span></div>
+            <div class="kv"><span>New deps</span><span>None</span></div>
+            <div class="kv"><span>Pros</span><span>Zero new dependencies · Instant theme switch with no flash · Persists across sessions</span></div>
+            <div class="kv"><span>Cons</span><span>Manual audit of all components needed for edge cases</span></div>
+          </div>
+
+          
+          <div class="approach-card" style="opacity:0.5;border-top-color:var(--border);">
+            <h4>🔵 Comprehensive Approach</h4>
+            <p style="font-size:0.8rem;">No meaningful difference from the simple approach for this feature and stack combination.</p>
+          </div>
+          
+        </div>
+
+        
+        <div class="card" style="margin-top:0.75rem;border-left-color:var(--success);">
+          <div class="card-meta">Recommendation: <strong>Simple</strong></div>
+          <p style="font-size:0.85rem;margin-top:0.25rem;">The existing CSS variable infrastructure makes a native CSS approach the obvious choice. No library needed. The only work is defining dark values and adding a toggle.</p>
+        </div>
+        
+
+      </div>
+      
+    </div>
+  </div>
+  
+
+  
+  
+  <div class="section" id="quality-audit">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Quality Audit</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      
+      <h3>Accessibility Issues</h3>
+      
+      <div class="card">
+        <span class="badge badge-serious">serious</span>
+        Search input placeholder text has insufficient contrast (3.2:1 vs 4.5:1 required)
+        <span style="font-size:0.8rem;color:var(--text-muted);"> (WCAG 1.4.3)</span>
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: Darken placeholder text to #767676 or add visible label</span>
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-serious">serious</span>
+        Sidebar links lack visible focus indicators
+        <span style="font-size:0.8rem;color:var(--text-muted);"> (WCAG 2.4.7)</span>
+        <br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: Add focus-visible outline to all interactive elements</span>
+      </div>
+      
+      
+
+      
+      <h3>Performance Metrics</h3>
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th><th>Rating</th></tr></thead>
+        <tbody>
+        
+        <tr>
+          <td>LCP</td>
+          <td>2.4s</td>
+          <td><span class="badge badge-needs-improvement">needs-improvement</span></td>
+        </tr>
+        
+        <tr>
+          <td>FCP</td>
+          <td>1.1s</td>
+          <td><span class="badge badge-good">good</span></td>
+        </tr>
+        
+        <tr>
+          <td>CLS</td>
+          <td>0.05</td>
+          <td><span class="badge badge-good">good</span></td>
+        </tr>
+        
+        <tr>
+          <td>INP</td>
+          <td>180ms</td>
+          <td><span class="badge badge-needs-improvement">needs-improvement</span></td>
+        </tr>
+        
+        </tbody>
+      </table>
+      
+
+      
+      <h3>Priority Issues</h3>
+      
+      <div class="card">
+        <span class="badge badge-high">high</span>
+        <span class="badge">performance</span>
+        LCP above 2.5s threshold due to unpreloaded hero image
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-high">high</span>
+        <span class="badge">accessibility</span>
+        Missing focus indicators on sidebar navigation
+      </div>
+      
+      <div class="card">
+        <span class="badge badge-medium">medium</span>
+        <span class="badge">performance</span>
+        Heavy Sidebar click handler causing INP issues
+      </div>
+      
+      
+    </div>
+  </div>
+  
+
+  
+  
+
+  <div class="footer">
+    Generated by Site Evolution Agents
+  </div>
+</div>
+
+<script>
+function toggle(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+
+function filterRecs(category, btn) {
+  document.querySelectorAll('.filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.rec-card').forEach(card => {
+    card.style.display = (category === 'all' || card.dataset.category === category) ? '' : 'none';
+  });
+}
+
+function showFeature(idx, btn) {
+  btn.closest('.section-body').querySelectorAll('.feature-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  btn.closest('.section-body').querySelectorAll('.feature-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('feat-panel-' + idx).classList.add('active');
+}
+
+function showDiagram(featIdx, diagIdx, btn) {
+  document.getElementById('dtabs-' + featIdx).querySelectorAll('.diagram-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Hide all panels for this feature
+  let i = 0;
+  while (document.getElementById('dpanel-' + featIdx + '-' + i)) {
+    document.getElementById('dpanel-' + featIdx + '-' + i).classList.remove('active');
+    i++;
+  }
+  document.getElementById('dpanel-' + featIdx + '-' + diagIdx).classList.add('active');
+}
+
+// Render all Mermaid diagrams after the page loads
+document.addEventListener('DOMContentLoaded', async () => {
+  const nodes = document.querySelectorAll('.mermaid');
+  if (!nodes.length) return;
+  // Re-run mermaid on all diagram nodes (including those in hidden tabs)
+  for (const node of nodes) {
+    const id = node.id || ('mermaid-' + Math.random().toString(36).slice(2));
+    node.id = id;
+    const src = node.textContent.trim();
+    try {
+      const { svg } = await mermaid.render(id + '-svg', src);
+      node.innerHTML = svg;
+    } catch (e) {
+      node.innerHTML = '<pre style="color:#f87171;font-size:0.75rem;">' + e.message + '</pre>';
+    }
+  }
+});
+</script>
+</body>
+</html>
