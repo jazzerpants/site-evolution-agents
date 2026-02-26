@@ -11,9 +11,15 @@ def _quote_paren_labels(s: str) -> str:
     Mermaid's parser treats ``(`` inside ``[label (text)]`` as a shape token,
     causing a parse error.  Converting to ``["label (text)"]`` fixes this.
     Already-quoted labels (``["..."]``) are left unchanged.
+
+    Cylinder shapes ``[(text)]`` are deliberately excluded — they start with
+    ``(`` as the *first* character inside ``[``, which is how Mermaid defines
+    that shape, and must not be quoted.
     """
+    # The first character class [^"\[\](] excludes ( so that cylinder shapes
+    # like [(Database)] are never touched (they start with ( inside []).
     return re.sub(
-        r'\[([^"\[\]]*[()][^"\[\]]*)\]',
+        r'\[([^"\[\](][^"\[\]]*[()][^"\[\]]*)\]',
         lambda m: '["' + m.group(1) + '"]',
         s,
     )
@@ -36,8 +42,11 @@ def _normalize_mermaid(source: str) -> str:
     s = source.strip()
     # Normalise graph TD/LR to flowchart (Mermaid 11 preferred syntax)
     s = re.sub(r"^graph\s+(TD|LR|BT|RL)", r"flowchart \1", s, flags=re.IGNORECASE)
-    # If already multi-line, apply label quoting and return
+    # Strip a trailing semicolon from the diagram type declaration line.
+    # Some models emit "flowchart TD;" which Mermaid 11 may reject.
     if "\n" in s:
+        first, rest = s.split("\n", 1)
+        s = first.rstrip("; ") + "\n" + rest
         return _quote_paren_labels(s)
     # Single-line semicolon-separated: split on ";" boundaries.
     # Track bracket/brace depth and quoted strings so we don't split

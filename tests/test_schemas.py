@@ -66,6 +66,27 @@ class TestNormalizeMermaid:
         result = _normalize_mermaid(src)
         assert '["Config (presumed)"]' in result
 
+    def test_cylinder_shape_not_quoted(self) -> None:
+        """Cylinder shapes [(text)] must NOT be wrapped in quotes."""
+        src = (
+            "flowchart TD\n"
+            "    A[App Root] --> B[(auth)]:::keep\n"
+            "    A --> C[(home)]:::keep"
+        )
+        result = _normalize_mermaid(src)
+        # Cylinders must be preserved as-is
+        assert "[(auth)]" in result
+        assert "[(home)]" in result
+        # No spurious quoting
+        assert '["(auth)"]' not in result
+
+    def test_trailing_semicolon_on_declaration_stripped(self) -> None:
+        """flowchart TD; trailing semicolons are removed from the declaration line."""
+        src = "flowchart TD;\n    A[Node]:::keep"
+        result = _normalize_mermaid(src)
+        assert result.startswith("flowchart TD\n")
+        assert ";" not in result.splitlines()[0]
+
     def test_already_quoted_label_unchanged(self) -> None:
         """Labels already in [\"...\"] form are not double-quoted."""
         src = 'flowchart TD\n    A["Already (quoted)"] --> B'
