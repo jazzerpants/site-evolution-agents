@@ -12,7 +12,7 @@ from sea.agents.tech_stack_advisor.tools import TOOLS, make_tool_handler
 from sea.schemas.code_analysis import CodeAnalysisOutput
 from sea.schemas.recommendations import Pass1Output
 from sea.schemas.tech_stack import TechStackAdvisorOutput
-from sea.shared.claude_client import ClaudeClient, ToolHandler
+from sea.shared.claude_client import ClaudeClient, ToolHandler, TokensCallback
 from sea.shared.codebase_reader import CodebaseReader
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,7 @@ class TechStackAdvisorAgent(BaseAgent):
         *,
         on_progress: Any | None = None,
         on_event: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> TechStackAdvisorOutput:
         """Evaluate tech stack options for a list of features.
 
@@ -113,9 +114,10 @@ class TechStackAdvisorAgent(BaseAgent):
                 tools=self.get_tools(),
                 tool_handler=self._tool_handler,
                 on_progress=on_progress,
+                on_tokens=on_tokens,
             )
             result = await self._parse_with_retry(
-                raw, messages, on_progress=on_progress, on_event=on_event,
+                raw, messages, on_progress=on_progress, on_event=on_event, on_tokens=on_tokens,
             )
             all_features.extend(result.features)
 

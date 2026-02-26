@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from rich.console import Console
 from rich.panel import Panel
@@ -14,6 +15,14 @@ console = Console()
 
 # Module-level reference so ask_user can pause/resume the active progress display.
 _active_progress: PipelineProgress | None = None
+
+
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds as a human-readable string."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m {s:02d}s"
 
 
 class PipelineProgress:
@@ -27,17 +36,31 @@ class PipelineProgress:
             console=console,
         )
         self._task_ids: dict[str, int] = {}
+        self._agent_start: dict[str, float] = {}
+        self._agent_tokens: dict[str, tuple[int, int]] = {}  # name -> (input, output)
+        self._pipeline_start: float = 0.0
 
     def __enter__(self) -> "PipelineProgress":
         global _active_progress
+        self._pipeline_start = time.monotonic()
         self._progress.__enter__()
         _active_progress = self
         return self
 
     def __exit__(self, *args: object) -> None:
         global _active_progress
+        elapsed = time.monotonic() - self._pipeline_start
         _active_progress = None
         self._progress.__exit__(*args)
+        total_input = sum(t[0] for t in self._agent_tokens.values())
+        total_output = sum(t[1] for t in self._agent_tokens.values())
+        if total_input or total_output:
+            console.print(
+                f"[dim]Total tokens: {total_input:,} input, {total_output:,} output[/]"
+            )
+        console.print(
+            f"[bold]Pipeline completed in {_fmt_duration(elapsed)}[/bold]"
+        )
 
     def pause(self) -> None:
         """Temporarily stop the live display (e.g. before prompting for input)."""
@@ -47,10 +70,17 @@ class PipelineProgress:
         """Restart the live display after a pause."""
         self._progress.start()
 
+    def record_tokens(self, agent_name: str, input_tok: int, output_tok: int) -> None:
+        """Accumulate token usage for an agent (may be called multiple times)."""
+        prev = self._agent_tokens.get(agent_name, (0, 0))
+        self._agent_tokens[agent_name] = (prev[0] + input_tok, prev[1] + output_tok)
+
     def start_agent(self, agent_name: str) -> None:
         """Register and start tracking an agent."""
+        self._agent_start[agent_name] = time.monotonic()
         tid = self._progress.add_task(f"[cyan]{agent_name}[/]", total=None)
         self._task_ids[agent_name] = tid
+        self._progress.console.print(f"  [dim]→ {agent_name} started[/]")
 
     def update_agent(self, agent_name: str, status: str) -> None:
         """Update the status text for an agent."""
@@ -62,21 +92,25 @@ class PipelineProgress:
 
     def finish_agent(self, agent_name: str) -> None:
         """Mark an agent as complete."""
+        duration = _fmt_duration(time.monotonic() - self._agent_start.get(agent_name, time.monotonic()))
         if agent_name in self._task_ids:
-            self._progress.update(
-                self._task_ids[agent_name],
-                description=f"[green]✓ {agent_name}[/]",
-                completed=True,
-            )
+            self._progress.remove_task(self._task_ids.pop(agent_name))
+        tokens = self._agent_tokens.get(agent_name)
+        token_str = f"  {tokens[0]:,}↑ {tokens[1]:,}↓ tok" if tokens else ""
+        self._progress.console.print(
+            f"  [green]✓ {agent_name} completed[/] [dim]({duration}{token_str})[/]"
+        )
 
     def fail_agent(self, agent_name: str, error: str) -> None:
         """Mark an agent as failed."""
+        duration = _fmt_duration(time.monotonic() - self._agent_start.get(agent_name, time.monotonic()))
         if agent_name in self._task_ids:
-            self._progress.update(
-                self._task_ids[agent_name],
-                description=f"[red]✗ {agent_name}: {error}[/]",
-                completed=True,
-            )
+            self._progress.remove_task(self._task_ids.pop(agent_name))
+        tokens = self._agent_tokens.get(agent_name)
+        token_str = f"  {tokens[0]:,}↑ {tokens[1]:,}↓ tok" if tokens else ""
+        self._progress.console.print(
+            f"  [red]✗ {agent_name} failed[/] [dim]({duration}{token_str}): {error}[/]"
+        )
 
     def log_event(self, agent_name: str, message: str, style: str = "dim") -> None:
         """Print a persistent log line above the spinner (not overwritten)."""

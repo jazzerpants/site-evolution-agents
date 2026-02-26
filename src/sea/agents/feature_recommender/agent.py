@@ -15,7 +15,7 @@ from sea.schemas.feasibility import FeasibilityOutput
 from sea.schemas.quality import QualityAuditOutput
 from sea.schemas.recommendations import Pass1Output, Pass2Output
 from sea.schemas.research import ComparativeResearchOutput
-from sea.shared.claude_client import ClaudeClient, ToolHandler
+from sea.shared.claude_client import ClaudeClient, ToolHandler, TokensCallback
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +60,13 @@ class FeatureRecommenderAgent(BaseAgent):
         system: str,
         user_message: str,
         parse_fn,
+        on_tokens: TokensCallback | None = None,
     ):
         """Call simple_completion, parse, and retry once if JSON parsing fails."""
         raw = await self.client.simple_completion(
             system=system,
             user_message=user_message,
+            on_tokens=on_tokens,
         )
         try:
             return parse_fn(raw)
@@ -79,6 +81,7 @@ class FeatureRecommenderAgent(BaseAgent):
         raw_retry = await self.client.simple_completion(
             system=system,
             user_message=retry_msg,
+            on_tokens=on_tokens,
         )
         return parse_fn(raw_retry)
 
@@ -89,6 +92,7 @@ class FeatureRecommenderAgent(BaseAgent):
         priorities: list[str],
         *,
         on_progress: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> Pass1Output:
         """Pass 1: Initial ranking from research + code analysis."""
         # Slim research: drop redundant per-competitor features, design_systems
@@ -119,7 +123,7 @@ class FeatureRecommenderAgent(BaseAgent):
         def parse(raw: str) -> Pass1Output:
             return Pass1Output(**extract_json(raw))
 
-        return await self._simple_with_retry(PASS1_SYSTEM_PROMPT, user_message, parse)
+        return await self._simple_with_retry(PASS1_SYSTEM_PROMPT, user_message, parse, on_tokens=on_tokens)
 
     async def run_pass2(
         self,
@@ -128,6 +132,7 @@ class FeatureRecommenderAgent(BaseAgent):
         quality_audit: QualityAuditOutput,
         *,
         on_progress: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> Pass2Output:
         """Pass 2: Re-rank with feasibility + quality data."""
         # Slim pass1: keep only key fields per recommendation
@@ -165,4 +170,4 @@ class FeatureRecommenderAgent(BaseAgent):
         def parse(raw: str) -> Pass2Output:
             return Pass2Output(**extract_json(raw))
 
-        return await self._simple_with_retry(PASS2_SYSTEM_PROMPT, user_message, parse)
+        return await self._simple_with_retry(PASS2_SYSTEM_PROMPT, user_message, parse, on_tokens=on_tokens)

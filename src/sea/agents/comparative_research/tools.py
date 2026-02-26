@@ -12,16 +12,13 @@ from sea.shared.progress import ask_user
 logger = logging.getLogger(__name__)
 
 # Hard page-visit budgets per site_depth level.
-# Counts browse_page + extract_css (screenshots have their own budget).
+# Counts browse_page + extract_css calls.
 PAGE_BUDGET: dict[int, int] = {
     0: 10,   # Homepages only — target + ~5 competitors
     1: 25,   # Homepage + a few top-level pages each
     2: 50,   # Two clicks deep
 }
 DEFAULT_PAGE_BUDGET = 25
-
-# Cap on screenshots per run (separate from page budget).
-MAX_SCREENSHOTS = 6  # target + up to 5 competitors
 
 # Claude tool definitions
 TOOLS: list[dict[str, Any]] = [
@@ -30,8 +27,7 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "Fetch a page and return its structured text content: headings, "
             "navigation, main text, interactive elements, and semantic landmarks. "
-            "This is efficient for understanding content and features. Use "
-            "'screenshot' for visual design assessment."
+            "Use this for content, feature, and UX pattern analysis."
         ),
         "input_schema": {
             "type": "object",
@@ -57,24 +53,6 @@ TOOLS: list[dict[str, Any]] = [
                 "url": {
                     "type": "string",
                     "description": "The URL to discover links on.",
-                }
-            },
-            "required": ["url"],
-        },
-    },
-    {
-        "name": "screenshot",
-        "description": (
-            "Take a full-page screenshot of a URL. Returns all viewport-height "
-            "sections for visual UX comparison. You MUST screenshot the target "
-            "site and each competitor homepage for visual design comparison."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to screenshot.",
                 }
             },
             "required": ["url"],
@@ -119,7 +97,6 @@ def make_tool_handler(browser: BrowserManager, *, site_depth: int = 1):
     """
     budget = PAGE_BUDGET.get(site_depth, DEFAULT_PAGE_BUDGET)
     visits: list[str] = []  # URLs visited (for logging / dedup info)
-    screenshot_count = 0
 
     def _budget_check(url: str, tool_name: str) -> str | None:
         """Return an error string if the budget is exhausted, else None."""
@@ -157,22 +134,6 @@ def make_tool_handler(browser: BrowserManager, *, site_depth: int = 1):
                     return header + json.dumps(links, indent=2)
                 except Exception as exc:
                     return f"Error discovering links on {input['url']}: {exc}"
-            case "screenshot":
-                nonlocal screenshot_count
-                if screenshot_count >= MAX_SCREENSHOTS:
-                    return (
-                        f"Screenshot budget reached ({MAX_SCREENSHOTS} max). "
-                        f"Use browse_page or extract_css for remaining sites."
-                    )
-                # Screenshots don't count against page budget — they're
-                # for visual capture, not content extraction.
-                try:
-                    screenshot_count += 1
-                    tiles = await browser.take_screenshot(input["url"])
-                    return tiles
-                except Exception as exc:
-                    screenshot_count -= 1  # don't penalize failed attempts
-                    return f"Error taking screenshot of {input['url']}: {exc}"
             case "extract_css":
                 err = _budget_check(input["url"], name)
                 if err:

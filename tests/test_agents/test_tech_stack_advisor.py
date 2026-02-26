@@ -140,7 +140,7 @@ class TestRunEvaluationMultipleFeatures:
         client = MagicMock(spec=ClaudeClient)
         call_inputs: list[str] = []
 
-        async def capture_and_return(system, messages, tools, tool_handler, on_progress=None):
+        async def capture_and_return(system, messages, tools, tool_handler, on_progress=None, on_tokens=None):
             call_inputs.append(messages[0]["content"])
             feature_name = json.loads(messages[0]["content"])["features_to_evaluate"][0]["feature_name"]
             return _make_feature_json(feature_name)
@@ -188,7 +188,7 @@ class TestRunEvaluationMultipleFeatures:
         client = MagicMock(spec=ClaudeClient)
         call_inputs: list[str] = []
 
-        async def capture_and_return(system, messages, tools, tool_handler, on_progress=None):
+        async def capture_and_return(system, messages, tools, tool_handler, on_progress=None, on_tokens=None):
             call_inputs.append(messages[0]["content"])
             feature_name = json.loads(messages[0]["content"])["features_to_evaluate"][0]["feature_name"]
             return _make_feature_json(feature_name)
@@ -292,7 +292,7 @@ class TestTokenBudget:
 
         client = MagicMock(spec=ClaudeClient)
 
-        async def capture(system, messages, tools, tool_handler, on_progress=None):
+        async def capture(system, messages, tools, tool_handler, on_progress=None, on_tokens=None):
             payload = json.loads(messages[0]["content"])
             call_feature_counts.append(len(payload["features_to_evaluate"]))
             name = payload["features_to_evaluate"][0]["feature_name"]
@@ -321,7 +321,7 @@ class TestTokenBudget:
         client = MagicMock(spec=ClaudeClient)
         response_sizes: list[int] = []
 
-        async def capture(system, messages, tools, tool_handler, on_progress=None):
+        async def capture(system, messages, tools, tool_handler, on_progress=None, on_tokens=None):
             name = json.loads(messages[0]["content"])["features_to_evaluate"][0]["feature_name"]
             response = _make_feature_json(name)
             response_sizes.append(len(response))

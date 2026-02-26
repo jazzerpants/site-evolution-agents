@@ -15,7 +15,7 @@ from sea.schemas.code_analysis import CodeAnalysisOutput
 from sea.schemas.config import Constraints
 from sea.schemas.feasibility import FeasibilityOutput
 from sea.schemas.recommendations import Pass1Output
-from sea.shared.claude_client import ClaudeClient, ToolHandler
+from sea.shared.claude_client import ClaudeClient, ToolHandler, TokensCallback
 from sea.shared.codebase_reader import CodebaseReader
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ class TechFeasibilityAgent(BaseAgent):
         *,
         on_progress: Any | None = None,
         on_event: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> FeasibilityOutput:
         """Run feasibility assessment on Pass 1 recommendations."""
         input_data: dict[str, Any] = {}
@@ -78,9 +79,10 @@ class TechFeasibilityAgent(BaseAgent):
             tools=self.get_tools(),
             tool_handler=self._tool_handler,
             on_progress=on_progress,
+            on_tokens=on_tokens,
         )
         return await self._parse_with_retry(
-            raw, messages, on_progress=on_progress, on_event=on_event,
+            raw, messages, on_progress=on_progress, on_event=on_event, on_tokens=on_tokens,
         )
 
     async def run_followup(
@@ -89,6 +91,7 @@ class TechFeasibilityAgent(BaseAgent):
         code_analysis: CodeAnalysisOutput | None = None,
         *,
         on_progress: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> str:
         """Assess an ad-hoc feature idea against the codebase. Returns plain-text answer."""
         input_data: dict[str, Any] = {"question": question}
@@ -105,5 +108,6 @@ class TechFeasibilityAgent(BaseAgent):
             tools=self.get_tools(),
             tool_handler=self._tool_handler,
             on_progress=on_progress,
+            on_tokens=on_tokens,
         )
         return raw.strip()

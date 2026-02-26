@@ -112,6 +112,11 @@ class OrchestratorAgent:
 
             await self._run_pass1(progress)
 
+            # ── Screenshot all discovered sites in parallel ───────
+            if self.config.target_url or self.state.research:
+                progress.print_phase("Capturing Screenshots")
+                await self._take_screenshots_parallel(progress)
+
             # ── 4C Pass 1: Feature Ranking ────────────────────────
             progress.print_phase("Feature Ranking (Pass 1)")
 
@@ -163,11 +168,16 @@ class OrchestratorAgent:
         reader = CodebaseReader(self.config.target_path)
         agent = CodeAnalysisAgent(client=self.client, reader=reader)
 
+        progress.log_event("4B Code Analysis", f"Codebase: [dim]{self.config.target_path}[/]")
+
         def on_progress(msg: str) -> None:
             progress.update_agent("4B Code Analysis", msg)
 
         def on_event(msg: str) -> None:
             progress.log_event("4B Code Analysis", msg)
+
+        def on_tokens(inp: int, out: int) -> None:
+            progress.record_tokens("4B Code Analysis", inp, out)
 
         try:
             user_msg = (
@@ -175,7 +185,7 @@ class OrchestratorAgent:
                 f"The user's priorities are: {', '.join(self.config.priorities)}"
             )
             self.state.code_analysis = await agent.run(
-                user_msg, on_progress=on_progress, on_event=on_event,
+                user_msg, on_progress=on_progress, on_event=on_event, on_tokens=on_tokens,
             )
             progress.finish_agent("4B Code Analysis")
         except Exception as exc:
@@ -186,11 +196,22 @@ class OrchestratorAgent:
         async with BrowserManager() as browser:
             agent = ComparativeResearchAgent(client=self.client, browser=browser, site_depth=self.config.site_depth)
 
+            if self.config.target_url:
+                progress.log_event("4A Comparative Research", f"Target URL: [dim]{self.config.target_url}[/]")
+            if self.config.competitor_urls:
+                progress.log_event(
+                    "4A Comparative Research",
+                    f"Known competitors: [dim]{', '.join(self.config.competitor_urls)}[/]",
+                )
+
             def on_progress(msg: str) -> None:
                 progress.update_agent("4A Comparative Research", msg)
 
             def on_event(msg: str) -> None:
                 progress.log_event("4A Comparative Research", msg)
+
+            def on_tokens(inp: int, out: int) -> None:
+                progress.record_tokens("4A Comparative Research", inp, out)
 
             try:
                 parts = []
@@ -210,24 +231,69 @@ class OrchestratorAgent:
 
                 user_msg = "\n".join(parts)
                 self.state.research = await agent.run(
-                    user_msg, on_progress=on_progress, on_event=on_event,
+                    user_msg, on_progress=on_progress, on_event=on_event, on_tokens=on_tokens,
                 )
+                # Log discovered competitors after 4A completes
+                if self.state.research and self.state.research.competitors:
+                    comp_names = ", ".join(c.name for c in self.state.research.competitors[:6])
+                    progress.log_event(
+                        "4A Comparative Research",
+                        f"Competitors found: [dim]{comp_names}[/]",
+                    )
                 progress.finish_agent("4A Comparative Research")
             except Exception as exc:
                 logger.exception("4A Comparative Research failed")
                 progress.fail_agent("4A Comparative Research", str(exc))
-            finally:
-                # Collect screenshots even if the agent failed — tiles are
-                # captured by the browser as soon as the screenshot tool runs.
-                if browser.captured_screenshots:
-                    self.state.screenshots.extend(
-                        ScreenshotEntry(**s) for s in browser.captured_screenshots
-                    )
-                    urls = [s["url"] for s in browser.captured_screenshots]
+
+    # ------------------------------------------------------------------
+    # Parallel screenshot capture
+    # ------------------------------------------------------------------
+
+    _MAX_SCREENSHOTS = 6  # target + up to 5 competitors
+
+    async def _take_screenshots_parallel(self, progress: PipelineProgress) -> None:
+        """Screenshot the target site and all discovered competitors in parallel.
+
+        Runs after 4A completes so we have the full competitor URL list.
+        Each URL gets its own Playwright page (concurrent via asyncio.gather).
+        """
+        urls: list[str] = []
+        if self.config.target_url:
+            urls.append(self.config.target_url)
+        if self.state.research:
+            for comp in self.state.research.competitors:
+                if comp.url and comp.url not in urls:
+                    urls.append(comp.url)
+
+        urls = urls[: self._MAX_SCREENSHOTS]
+        if not urls:
+            return
+
+        progress.log_event(
+            "Screenshots",
+            f"[dim]Taking {len(urls)} screenshot(s) in parallel: {', '.join(urls)}[/]",
+        )
+
+        async with BrowserManager() as browser:
+            async def _shoot(url: str) -> None:
+                try:
+                    await browser.take_screenshot(url)
+                    progress.log_event("Screenshots", f"[green]✓[/] {url}")
+                except Exception as exc:
                     progress.log_event(
-                        "4A Comparative Research",
-                        f"[green]Captured {len(urls)} screenshot(s):[/] {', '.join(urls)}",
+                        "Screenshots", f"[yellow]Screenshot failed for {url}: {exc}[/]"
                     )
+
+            await asyncio.gather(*(_shoot(url) for url in urls))
+
+            if browser.captured_screenshots:
+                self.state.screenshots.extend(
+                    ScreenshotEntry(**s) for s in browser.captured_screenshots
+                )
+                progress.log_event(
+                    "Screenshots",
+                    f"[green]Captured {len(browser.captured_screenshots)} screenshot(s)[/]",
+                )
 
     # ------------------------------------------------------------------
     # 4C Pass 1
@@ -241,6 +307,9 @@ class OrchestratorAgent:
         progress.start_agent("4C Feature Recommender (Pass 1)")
         agent = FeatureRecommenderAgent(client=self.client)
 
+        def on_tokens_4c1(inp: int, out: int) -> None:
+            progress.record_tokens("4C Feature Recommender (Pass 1)", inp, out)
+
         try:
             # Provide empty defaults if one agent failed
             from sea.schemas.research import ComparativeResearchOutput
@@ -253,6 +322,7 @@ class OrchestratorAgent:
                 research=research,
                 code_analysis=code_analysis,
                 priorities=self.config.priorities,
+                on_tokens=on_tokens_4c1,
             )
             progress.finish_agent("4C Feature Recommender (Pass 1)")
         except Exception as exc:
@@ -264,7 +334,7 @@ class OrchestratorAgent:
     # ------------------------------------------------------------------
 
     async def _run_pass2(self, progress: PipelineProgress) -> None:
-        """Run 4D → 4E → 4G sequentially.
+        """Run 4D → 4G sequentially.
 
         Running these in parallel triggers OpenAI TPM rate limits on
         most org tiers, so we run them one at a time.
@@ -272,9 +342,10 @@ class OrchestratorAgent:
         progress.start_agent("4D Tech Feasibility")
         await self._run_feasibility(progress)
 
-        if self.config.target_url:
-            progress.start_agent("4E Quality Audit")
-            await self._run_quality_audit(progress)
+        # 4E Quality Audit is temporarily disabled
+        # if self.config.target_url:
+        #     progress.start_agent("4E Quality Audit")
+        #     await self._run_quality_audit(progress)
 
         if self.config.target_path:
             progress.start_agent("4G Tech Stack Advisor")
@@ -296,6 +367,9 @@ class OrchestratorAgent:
         def on_event(msg: str) -> None:
             progress.log_event("4D Tech Feasibility", msg)
 
+        def on_tokens(inp: int, out: int) -> None:
+            progress.record_tokens("4D Tech Feasibility", inp, out)
+
         try:
             self.state.feasibility = await agent.run_assessment(
                 pass1=self.state.pass1,
@@ -303,6 +377,7 @@ class OrchestratorAgent:
                 constraints=self.config.constraints,
                 on_progress=on_progress,
                 on_event=on_event,
+                on_tokens=on_tokens,
             )
             progress.finish_agent("4D Tech Feasibility")
         except Exception as exc:
@@ -379,6 +454,9 @@ class OrchestratorAgent:
         def on_event(msg: str) -> None:
             progress.log_event("4G Tech Stack Advisor", msg)
 
+        def on_tokens(inp: int, out: int) -> None:
+            progress.record_tokens("4G Tech Stack Advisor", inp, out)
+
         try:
             self.state.tech_stack_advisor = await agent.run_evaluation(
                 features=features,
@@ -386,6 +464,7 @@ class OrchestratorAgent:
                 pass1=self.state.pass1,
                 on_progress=on_progress,
                 on_event=on_event,
+                on_tokens=on_tokens,
             )
             progress.finish_agent("4G Tech Stack Advisor")
         except Exception as exc:
@@ -410,11 +489,15 @@ class OrchestratorAgent:
         progress.start_agent("4C Feature Recommender (Pass 2)")
         agent = FeatureRecommenderAgent(client=self.client)
 
+        def on_tokens_4c2(inp: int, out: int) -> None:
+            progress.record_tokens("4C Feature Recommender (Pass 2)", inp, out)
+
         try:
             self.state.pass2 = await agent.run_pass2(
                 pass1=self.state.pass1,
                 feasibility=feasibility,
                 quality_audit=quality,
+                on_tokens=on_tokens_4c2,
             )
             progress.finish_agent("4C Feature Recommender (Pass 2)")
         except Exception as exc:
@@ -436,6 +519,9 @@ class OrchestratorAgent:
 
         def on_event(msg: str) -> None:
             progress.log_event("4F UX Design Audit", msg)
+
+        def on_tokens(inp: int, out: int) -> None:
+            progress.record_tokens("4F UX Design Audit", inp, out)
 
         try:
             # Gather context from prior agents
@@ -469,6 +555,7 @@ class OrchestratorAgent:
                 design_system_info=design_system_info,
                 on_progress=on_progress,
                 on_event=on_event,
+                on_tokens=on_tokens,
             )
             progress.finish_agent("4F UX Design Audit")
         except Exception as exc:

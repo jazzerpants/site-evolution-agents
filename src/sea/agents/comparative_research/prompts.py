@@ -36,8 +36,6 @@ For each competitor, evaluate:
 content, interactive elements, landmarks). Use this for content/feature analysis.
 - `discover_links(url)` — find internal navigation links on a page. Use this to \
 decide which sub-pages to explore within the allowed depth.
-- `screenshot(url)` — take a full-page screenshot for visual design analysis. \
-You MUST screenshot every competitor homepage and the target site.
 - `extract_css(url)` — extract CSS custom properties and computed styles for design \
 system analysis.
 - `ask_user(question)` — ask the user a single, focused question and get their \
@@ -51,11 +49,7 @@ response. **Important rules for ask_user:**
 
 ## Workflow (follow this order)
 
-**Step 1 — Screenshot all homepages FIRST.** Before any other browsing, call \
-`screenshot` on the target site and on each competitor homepage. This is mandatory. \
-Screenshots do not count against the page budget so there is no reason to skip them.
-
-**Step 2 — Browse for content.** Use `browse_page` and other tools to analyze each \
+**Step 1 — Browse for content.** Use `browse_page` and other tools to analyze each \
 site according to the depth setting below.
 
 ## Exploration Depth
@@ -69,11 +63,6 @@ top-level pages into detail pages.
 
 For **every** competitor: use `browse_page` for content/feature analysis on all pages \
 you visit. Use `extract_css` once per competitor (on the homepage).
-
-**Screenshots are required for visual UX comparison** — you will receive the full-page \
-screenshot tiles so you can visually compare design quality, layout patterns, \
-typography, color schemes, and visual hierarchy across sites. The full-page \
-screenshots are also saved for the report dashboard.
 
 ## Gap Analysis — User Value and Competitor Prevalence
 When identifying gaps, evaluate each missing feature carefully:

@@ -92,7 +92,7 @@ class TestComparativeResearchTools:
 
     def test_expected_tools_exist(self) -> None:
         names = {t["name"] for t in TOOLS}
-        assert names == {"browse_page", "discover_links", "screenshot", "extract_css", "ask_user"}
+        assert names == {"browse_page", "discover_links", "extract_css", "ask_user"}
 
     @pytest.mark.asyncio
     async def test_tool_handler_unknown_tool(self) -> None:
@@ -133,52 +133,6 @@ class TestPageBudget:
 
         # Browser should NOT have been called for the over-budget request
         assert browser.get_page_text.call_count == budget
-
-    @pytest.mark.asyncio
-    async def test_screenshot_exempt_from_page_budget(self) -> None:
-        """Screenshots have their own budget and don't consume from the page budget."""
-        browser = MagicMock(spec=BrowserManager)
-        browser.get_page_text = AsyncMock(return_value="text")
-        browser.take_screenshot = AsyncMock(return_value=["tile1_b64"])
-        browser.extract_css = AsyncMock(return_value='{"custom_properties":{}}')
-
-        # Use depth 0 (budget=10) for a quick test
-        handler = make_tool_handler(browser, site_depth=0)
-        budget = PAGE_BUDGET[0]
-
-        # Exhaust the page budget with browse_page + extract_css
-        for i in range(budget):
-            await handler("browse_page", {"url": f"https://a.com/{i}"})
-
-        # browse_page and extract_css should now be blocked
-        result = await handler("browse_page", {"url": "https://a.com/over"})
-        assert "Page budget exhausted" in result
-        result = await handler("extract_css", {"url": "https://a.com/over"})
-        assert "Page budget exhausted" in result
-
-        # But screenshots should still work (separate budget)
-        result = await handler("screenshot", {"url": "https://a.com/still-works"})
-        assert isinstance(result, list), "screenshot should still succeed"
-
-    @pytest.mark.asyncio
-    async def test_screenshot_budget_enforced(self) -> None:
-        """Screenshots have their own MAX_SCREENSHOTS cap."""
-        from sea.agents.comparative_research.tools import MAX_SCREENSHOTS
-
-        browser = MagicMock(spec=BrowserManager)
-        browser.take_screenshot = AsyncMock(return_value=["tile1_b64"])
-
-        handler = make_tool_handler(browser, site_depth=0)
-
-        # Exhaust the screenshot budget
-        for i in range(MAX_SCREENSHOTS):
-            result = await handler("screenshot", {"url": f"https://a.com/site{i}"})
-            assert isinstance(result, list), f"screenshot {i + 1} should succeed"
-
-        # Next screenshot should be refused
-        result = await handler("screenshot", {"url": "https://a.com/over"})
-        assert "Screenshot budget reached" in result
-        assert browser.take_screenshot.call_count == MAX_SCREENSHOTS
 
     @pytest.mark.asyncio
     async def test_discover_links_does_not_count(self) -> None:

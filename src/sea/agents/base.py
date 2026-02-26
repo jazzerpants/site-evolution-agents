@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from sea.shared.claude_client import ClaudeClient, ToolHandler
+from sea.shared.claude_client import ClaudeClient, ToolHandler, TokensCallback
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ class BaseAgent(ABC):
         *,
         on_progress: Any | None = None,
         on_event: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> BaseModel:
         """Run the agent loop and return the parsed output model.
 
@@ -70,11 +71,12 @@ class BaseAgent(ABC):
             tools=self.get_tools(),
             tool_handler=self.get_tool_handler(),
             on_progress=on_progress,
+            on_tokens=on_tokens,
         )
 
         logger.debug("Agent %s raw output:\n%s", self.name, raw[:500])
         return await self._parse_with_retry(
-            raw, messages, on_progress=on_progress, on_event=on_event,
+            raw, messages, on_progress=on_progress, on_event=on_event, on_tokens=on_tokens,
         )
 
     async def _parse_with_retry(
@@ -85,6 +87,7 @@ class BaseAgent(ABC):
         system: str | None = None,
         on_progress: Any | None = None,
         on_event: Any | None = None,
+        on_tokens: TokensCallback | None = None,
     ) -> BaseModel:
         """Try to parse model output as JSON; on failure ask the model to re-format.
 
@@ -127,6 +130,7 @@ class BaseAgent(ABC):
             tools=[],
             tool_handler=self.get_tool_handler(),
             on_progress=on_progress,
+            on_tokens=on_tokens,
         )
 
         logger.debug("Agent %s retry output:\n%s", self.name, raw_retry[:500])

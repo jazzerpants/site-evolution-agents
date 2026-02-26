@@ -48,12 +48,13 @@ class BrowserManager:
         assert self._browser is not None, "BrowserManager not entered"
         return await self._browser.new_page()
 
-    async def get_page_html(self, url: str, *, wait_ms: int = 1000) -> str:
+    async def get_page_html(self, url: str, *, wait_ms: int = 0) -> str:
         """Navigate to URL and return the rendered HTML."""
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
-            await page.wait_for_timeout(wait_ms)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+            if wait_ms:
+                await page.wait_for_timeout(wait_ms)
             return await page.content()
         finally:
             await page.close()
@@ -66,7 +67,7 @@ class BrowserManager:
         """
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
             result = await page.evaluate(r"""() => {
                 const sections = [];
 
@@ -144,7 +145,7 @@ class BrowserManager:
         """
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
             links = await page.evaluate("""(sameOrigin) => {
                 const origin = window.location.origin;
                 const seen = new Set();
@@ -176,13 +177,12 @@ class BrowserManager:
         page = await self._new_page()
         try:
             await page.set_viewport_size({"width": 1280, "height": 800})
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="load", timeout=15_000)
             page_height = await page.evaluate("() => document.body.scrollHeight")
             tile_height = 800
             tiles: list[str] = []
             for y in range(0, page_height, tile_height):
                 await page.evaluate(f"window.scrollTo(0, {y})")
-                await page.wait_for_timeout(100)
                 raw = await page.screenshot(full_page=False, type="jpeg", quality=70)
                 tiles.append(base64.b64encode(raw).decode())
 
@@ -202,7 +202,7 @@ class BrowserManager:
         """Extract all CSS custom properties and computed styles from a page."""
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
             css_data = await page.evaluate("""() => {
                 const root = getComputedStyle(document.documentElement);
                 const props = {};
@@ -248,7 +248,7 @@ class BrowserManager:
         """
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
             # Inject axe-core
             await page.add_script_tag(
                 url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js"
@@ -283,7 +283,7 @@ class BrowserManager:
         """Measure basic performance metrics for a page."""
         page = await self._new_page()
         try:
-            await page.goto(url, wait_until="load", timeout=30_000)
+            await page.goto(url, wait_until="load", timeout=15_000)
             metrics = await page.evaluate("""() => {
                 const nav = performance.getEntriesByType('navigation')[0];
                 const paint = performance.getEntriesByType('paint');
