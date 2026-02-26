@@ -598,6 +598,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const src = node.textContent.trim();
     // Clear the text content so the node is empty before Mermaid renders into it.
     node.textContent = '';
+    // Mermaid measures label text via the DOM. If the parent panel is hidden
+    // (display:none) the browser returns 0 for all dimensions, causing the
+    // SVG viewBox to collapse to 16px and all nodes to render invisible.
+    // Temporarily force the panel visible so measurements work, then restore.
+    const panel = node.closest('.diagram-panel');
+    const wasHidden = panel && getComputedStyle(panel).display === 'none';
+    if (wasHidden) panel.style.display = 'block';
     try {
       // Pass `node` as the render container so Mermaid outputs directly into
       // it rather than appending a temp element to document.body (which it
@@ -613,6 +620,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         'Mermaid error: ' + e.message + '\n\nSource:\n' +
         src.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
         '</pre>';
+    } finally {
+      if (wasHidden) panel.style.removeProperty('display');
     }
   }
 });
