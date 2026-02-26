@@ -109,7 +109,7 @@
 <body>
 <div class="container">
   <h1>Site Evolution Report</h1>
-  <div class="meta">{{ site_name }} &mdash; Generated {{ generated_at }}</div>
+  <div class="meta">{{ site_name }} &mdash; Last updated {{ generated_at }}</div>
 
   {% if executive_summary %}
   <div class="executive">
@@ -598,13 +598,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const src = node.textContent.trim();
     // Clear the text content so the node is empty before Mermaid renders into it.
     node.textContent = '';
-    // Mermaid measures label text via the DOM. If the parent panel is hidden
-    // (display:none) the browser returns 0 for all dimensions, causing the
-    // SVG viewBox to collapse to 16px and all nodes to render invisible.
-    // Temporarily force the panel visible so measurements work, then restore.
-    const panel = node.closest('.diagram-panel');
-    const wasHidden = panel && getComputedStyle(panel).display === 'none';
-    if (wasHidden) panel.style.display = 'block';
+    // Mermaid measures label text via the DOM. If any ancestor has display:none
+    // (e.g. a non-active .feature-panel or .section-body that is collapsed),
+    // the browser returns 0 for all dimensions, causing the SVG viewBox to
+    // collapse to 16px and all nodes to render invisible.
+    // Walk up the ancestor chain, temporarily force any hidden ancestors visible,
+    // render, then restore them all.
+    const hiddenAncestors = [];
+    let ancestor = node.parentElement;
+    while (ancestor && ancestor !== document.documentElement) {
+      if (getComputedStyle(ancestor).display === 'none') {
+        hiddenAncestors.push({ el: ancestor, prev: ancestor.style.display });
+        ancestor.style.display = 'block';
+      }
+      ancestor = ancestor.parentElement;
+    }
     try {
       // Pass `node` as the render container so Mermaid outputs directly into
       // it rather than appending a temp element to document.body (which it
@@ -621,7 +629,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         src.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
         '</pre>';
     } finally {
-      if (wasHidden) panel.style.removeProperty('display');
+      hiddenAncestors.forEach(({ el, prev }) => {
+        if (prev) el.style.display = prev;
+        else el.style.removeProperty('display');
+      });
     }
   }
 });

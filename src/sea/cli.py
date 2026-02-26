@@ -189,6 +189,7 @@ async def _run_followup(out_dir: Path, question: str) -> None:
     else:
         report.feasibility.follow_up_qa.append(qa)
 
+    report.generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     report_path = out_dir / "report.json"
     report_path.write_text(report.model_dump_json(exclude={"screenshots"}, indent=2))
 
@@ -250,6 +251,7 @@ def render(
 async def _run_render(out_dir: Path) -> None:
     """Re-render outputs from a saved report.json."""
     import json
+    from datetime import datetime, timezone
 
     from sea.output.dashboard import render_dashboard
     from sea.output.markdown import render_markdown_report
@@ -257,6 +259,7 @@ async def _run_render(out_dir: Path) -> None:
 
     console.print(f"[bold]Loading report from:[/] {out_dir / 'report.json'}")
     report = FinalReport.model_validate_json((out_dir / "report.json").read_text())
+    report.generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     summary_path = out_dir / "executive-summary.txt"
     summary = summary_path.read_text() if summary_path.exists() else ""
@@ -371,9 +374,11 @@ async def _run_feature_evaluation(
         from sea.output.markdown import render_markdown_report
         from sea.schemas.pipeline import FinalReport
 
+        from datetime import datetime, timezone as _tz
         report_path = patch_report / "report.json"
         report = FinalReport.model_validate_json(report_path.read_text())
         report.tech_stack_advisor = result
+        report.generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
         report_path.write_text(report.model_dump_json(exclude={"screenshots"}, indent=2))
         console.print(f"[green]Patched:[/] {report_path}")
 
