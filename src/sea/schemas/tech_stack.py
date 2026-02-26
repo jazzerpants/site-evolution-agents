@@ -5,6 +5,20 @@ import re
 from pydantic import BaseModel, field_validator
 
 
+def _quote_paren_labels(s: str) -> str:
+    """Wrap unquoted node labels containing parentheses in double quotes.
+
+    Mermaid's parser treats ``(`` inside ``[label (text)]`` as a shape token,
+    causing a parse error.  Converting to ``["label (text)"]`` fixes this.
+    Already-quoted labels (``["..."]``) are left unchanged.
+    """
+    return re.sub(
+        r'\[([^"\[\]]*[()][^"\[\]]*)\]',
+        lambda m: '["' + m.group(1) + '"]',
+        s,
+    )
+
+
 def _normalize_mermaid(source: str) -> str:
     """Normalize model-generated Mermaid source to the format Mermaid.js 11 expects.
 
@@ -17,13 +31,14 @@ def _normalize_mermaid(source: str) -> str:
     - ``graph TD`` → ``flowchart TD``
     - ``graph LR`` → ``flowchart LR``
     - Semicolons used as statement separators → newlines
+    - Unquoted node labels containing ``(`` or ``)`` → quoted form
     """
     s = source.strip()
     # Normalise graph TD/LR to flowchart (Mermaid 11 preferred syntax)
     s = re.sub(r"^graph\s+(TD|LR|BT|RL)", r"flowchart \1", s, flags=re.IGNORECASE)
-    # If already multi-line, nothing more to do
+    # If already multi-line, apply label quoting and return
     if "\n" in s:
-        return s
+        return _quote_paren_labels(s)
     # Single-line semicolon-separated: split on ";" boundaries.
     # Track bracket/brace depth and quoted strings so we don't split
     # inside node labels like nodeA["A; B"] or A{Question; sub}.
@@ -60,7 +75,7 @@ def _normalize_mermaid(source: str) -> str:
         i += 1
     if current.strip():
         lines.append(current.strip())
-    return "\n    ".join(lines)
+    return _quote_paren_labels("\n    ".join(lines))
 
 
 class ArchitectureDiagram(BaseModel):

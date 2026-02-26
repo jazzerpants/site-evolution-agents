@@ -50,6 +50,28 @@ class TestNormalizeMermaid:
         assert "\n" in result
         assert "classDef keep" in result
 
+    def test_paren_in_label_quoted_multiline(self) -> None:
+        """Labels with ( ) in multi-line diagrams are wrapped in quotes."""
+        src = (
+            "flowchart TD\n"
+            "    tailwindConfig[Tailwind Config (presumed)]:::keep\n"
+            "    appRoot --> tailwindConfig"
+        )
+        result = _normalize_mermaid(src)
+        assert '["Tailwind Config (presumed)"]' in result
+
+    def test_paren_in_label_quoted_singleline(self) -> None:
+        """Labels with ( ) in single-line semicolon diagrams are wrapped in quotes."""
+        src = "flowchart TD; nodeA[Config (presumed)]:::keep; nodeB[Other]"
+        result = _normalize_mermaid(src)
+        assert '["Config (presumed)"]' in result
+
+    def test_already_quoted_label_unchanged(self) -> None:
+        """Labels already in [\"...\"] form are not double-quoted."""
+        src = 'flowchart TD\n    A["Already (quoted)"] --> B'
+        result = _normalize_mermaid(src)
+        assert result.count('"') == 2  # exactly the original two quotes
+
     def test_semicolons_inside_quoted_labels_not_split(self) -> None:
         """Semicolons inside double-quoted labels are preserved."""
         # Only 1 separator semicolon (after flowchart TD), so 2 output lines.
