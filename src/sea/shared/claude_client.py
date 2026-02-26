@@ -73,9 +73,11 @@ class ClaudeClient:
                 return await self._client.chat.completions.create(**kwargs)
             except RateLimitError as exc:
                 msg = str(exc).lower()
-                # "Request too large" means the payload exceeds TPM — waiting
-                # won't fix it, so don't waste time retrying.
-                if "request too large" in msg or "requested" in msg and "limit" in msg:
+                # "Request too large" / "context_length_exceeded" means the
+                # payload itself is too big — retrying won't help.
+                # Transient TPM/RPM rate limits ("please try again in Xms")
+                # are always retryable with backoff.
+                if "request too large" in msg or "context_length_exceeded" in msg:
                     logger.error(
                         "Request exceeds token limit (not retryable): %s", exc,
                     )

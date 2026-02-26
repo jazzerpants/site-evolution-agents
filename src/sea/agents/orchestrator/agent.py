@@ -117,9 +117,9 @@ class OrchestratorAgent:
 
             await self._run_feature_ranking_pass1(progress)
 
-            # ── Pass 2: Feasibility + Quality (parallel) ──────────
+            # ── Pass 2: Feasibility + Quality + Tech Stack ────────
             if self.state.pass1:
-                progress.print_phase("Pass 2: Feasibility + Quality Audit")
+                progress.print_phase("Pass 2: Feasibility, Quality Audit & Tech Stack")
                 await self._run_pass2(progress)
 
                 # ── 4C Pass 2: Re-ranking ────────────────────────
@@ -264,7 +264,7 @@ class OrchestratorAgent:
     # ------------------------------------------------------------------
 
     async def _run_pass2(self, progress: PipelineProgress) -> None:
-        """Run 4D (Feasibility) then 4E (Quality Audit) sequentially.
+        """Run 4D → 4E → 4G sequentially.
 
         Running these in parallel triggers OpenAI TPM rate limits on
         most org tiers, so we run them one at a time.
@@ -275,6 +275,10 @@ class OrchestratorAgent:
         if self.config.target_url:
             progress.start_agent("4E Quality Audit")
             await self._run_quality_audit(progress)
+
+        if self.config.target_path:
+            progress.start_agent("4G Tech Stack Advisor")
+            await self._run_tech_stack_advisor(progress)
 
     async def _run_feasibility(self, progress: PipelineProgress) -> None:
         from sea.agents.tech_feasibility.agent import TechFeasibilityAgent
@@ -339,6 +343,54 @@ class OrchestratorAgent:
                         "4E Quality Audit",
                         f"[green]Captured {len(urls)} screenshot(s):[/] {', '.join(urls)}",
                     )
+
+    async def _run_tech_stack_advisor(self, progress: PipelineProgress) -> None:
+        from sea.agents.tech_stack_advisor.agent import TechStackAdvisorAgent
+
+        if not self.config.target_path:
+            progress.fail_agent("4G Tech Stack Advisor", "No codebase path")
+            return
+
+        # Determine which features to evaluate:
+        # Start with explicit features from config, then add ALL 4C Pass 1
+        # recommendations that aren't already covered (not just parity gaps —
+        # any recommended feature may benefit from tech stack guidance).
+        # Deduplication is case-insensitive exact match — the model handles
+        # near-duplicates (e.g. "search" vs "Add site search") gracefully.
+        features: list[str] = list(self.config.features)
+
+        if self.state.pass1:
+            seen = {f.lower() for f in features}
+            for rec in self.state.pass1.recommendations:
+                if rec.title.lower() not in seen:
+                    features.append(rec.title)
+                    seen.add(rec.title.lower())
+
+        if not features:
+            progress.finish_agent("4G Tech Stack Advisor")
+            return
+
+        reader = CodebaseReader(self.config.target_path)
+        agent = TechStackAdvisorAgent(client=self.client, reader=reader)
+
+        def on_progress(msg: str) -> None:
+            progress.update_agent("4G Tech Stack Advisor", msg)
+
+        def on_event(msg: str) -> None:
+            progress.log_event("4G Tech Stack Advisor", msg)
+
+        try:
+            self.state.tech_stack_advisor = await agent.run_evaluation(
+                features=features,
+                code_analysis=self.state.code_analysis,
+                pass1=self.state.pass1,
+                on_progress=on_progress,
+                on_event=on_event,
+            )
+            progress.finish_agent("4G Tech Stack Advisor")
+        except Exception as exc:
+            logger.exception("4G Tech Stack Advisor failed")
+            progress.fail_agent("4G Tech Stack Advisor", str(exc))
 
     # ------------------------------------------------------------------
     # 4C Pass 2
@@ -444,6 +496,7 @@ class OrchestratorAgent:
             recommendations=self.state.pass2 or self.state.pass1,
             feasibility=feasibility,
             quality_audit=self.state.quality_audit,
+            tech_stack_advisor=self.state.tech_stack_advisor,
             ux_design=self.state.ux_design,
             screenshots=self.state.screenshots,
         )
@@ -517,6 +570,20 @@ class OrchestratorAgent:
             console.print(f"[green]HTML dashboard written to:[/] {html_path}")
         except ImportError:
             logger.debug("Dashboard module not yet available, skipping HTML output")
+
+        # Save raw data for re-rendering without re-running agents
+        import json as _json
+
+        report_json_path = out_dir / "report.json"
+        report_json_path.write_text(
+            report.model_dump_json(exclude={"screenshots"}, indent=2)
+        )
+        (out_dir / "executive-summary.txt").write_text(summary)
+        if screenshot_paths:
+            (out_dir / "screenshot-paths.json").write_text(
+                _json.dumps(screenshot_paths, indent=2)
+            )
+        console.print(f"[green]Report data saved to:[/] {report_json_path}  (use [bold]sea render[/] to re-render)")
 
     def _save_screenshots(
         self, out_dir: Path, report: FinalReport,

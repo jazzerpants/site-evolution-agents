@@ -68,8 +68,43 @@
   .executive ul { padding-left: 1.25rem; }
   .executive li { margin-bottom: 0.25rem; }
 
+  /* Tech stack advisor */
+  .feature-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+  .feature-tab { padding: 0.35rem 0.85rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; transition: all 0.15s; }
+  .feature-tab:hover, .feature-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .feature-panel { display: none; }
+  .feature-panel.active { display: block; }
+  .diagram-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
+  .diagram-tab { padding: 0.25rem 0.65rem; border-radius: var(--radius) var(--radius) 0 0; border: 1px solid var(--border); border-bottom: none; background: var(--surface); color: var(--text-muted); cursor: pointer; font-size: 0.75rem; transition: all 0.15s; }
+  .diagram-tab.active { background: var(--surface-hover); color: var(--text); }
+  .diagram-panel { display: none; background: var(--surface-hover); border-radius: 0 var(--radius) var(--radius) var(--radius); padding: 1rem; border: 1px solid var(--border); }
+  .diagram-panel.active { display: block; }
+  .diagram-summary { font-size: 0.875rem; line-height: 1.6; margin-bottom: 0.75rem; color: var(--text); }
+  .diagram-legend { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.75rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-keep { background: #4ade80; }
+  .legend-issue { background: #f87171; }
+  .legend-modify { background: #fbbf24; }
+  .legend-new { background: #38bdf8; }
+  .mermaid-wrap { background: #fff; border-radius: var(--radius); padding: 1rem; overflow-x: auto; }
+  .mermaid-wrap .mermaid { min-height: 80px; }
+  .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+  @media (max-width: 700px) { .approach-grid { grid-template-columns: 1fr; } }
+  .approach-card { background: var(--surface-hover); border-radius: var(--radius); padding: 0.85rem; border-top: 3px solid var(--accent); }
+  .approach-card.comprehensive { border-top-color: var(--warning); }
+  .approach-card h4 { font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .approach-card .kv { font-size: 0.8rem; display: flex; gap: 0.5rem; margin-bottom: 0.2rem; }
+  .approach-card .kv span:first-child { color: var(--text-muted); min-width: 90px; }
+  .parity-banner { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.3); border-radius: var(--radius); padding: 0.6rem 0.9rem; margin-bottom: 0.75rem; font-size: 0.8rem; color: var(--accent); }
+  .rec-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.4rem; background: rgba(56,189,248,0.15); color: var(--accent); vertical-align: middle; }
+
   .footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0 1rem; border-top: 1px solid var(--border); margin-top: 2rem; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+</script>
 </head>
 <body>
 <div class="container">
@@ -221,56 +256,6 @@
   </div>
   {% endif %}
 
-  {# ── Quality Audit ────────────────────────────────────── #}
-  {% if quality_audit %}
-  <div class="section" id="quality-audit">
-    <div class="section-header" onclick="toggle(this)">
-      <h2 style="margin:0;border:0;padding:0;">Quality Audit</h2>
-      <span class="arrow">▼</span>
-    </div>
-    <div class="section-body">
-      {% if quality_audit.accessibility.issues %}
-      <h3>Accessibility Issues</h3>
-      {% for issue in quality_audit.accessibility.issues %}
-      <div class="card">
-        <span class="badge badge-{{ issue.severity }}">{{ issue.severity }}</span>
-        {{ issue.description }}
-        {% if issue.wcag_criterion %}<span style="font-size:0.8rem;color:var(--text-muted);"> (WCAG {{ issue.wcag_criterion }})</span>{% endif %}
-        {% if issue.suggestion %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: {{ issue.suggestion }}</span>{% endif %}
-      </div>
-      {% endfor %}
-      {% endif %}
-
-      {% if quality_audit.performance.metrics %}
-      <h3>Performance Metrics</h3>
-      <table>
-        <thead><tr><th>Metric</th><th>Value</th><th>Rating</th></tr></thead>
-        <tbody>
-        {% for m in quality_audit.performance.metrics %}
-        <tr>
-          <td>{{ m.name }}</td>
-          <td>{{ m.value }}</td>
-          <td><span class="badge badge-{{ m.rating }}">{{ m.rating }}</span></td>
-        </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
-
-      {% if quality_audit.priority_issues %}
-      <h3>Priority Issues</h3>
-      {% for issue in quality_audit.priority_issues %}
-      <div class="card">
-        <span class="badge badge-{{ issue.impact }}">{{ issue.impact }}</span>
-        <span class="badge">{{ issue.category }}</span>
-        {{ issue.description }}
-      </div>
-      {% endfor %}
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
   {# ── UX & Design ────────────────────────────────────────── #}
   {% if ux_design %}
   <div class="section" id="ux-design">
@@ -350,6 +335,173 @@
   </div>
   {% endif %}
 
+  {# ── Tech Stack Advisor ───────────────────────────────── #}
+  {% if tech_stack_advisor and tech_stack_advisor.features %}
+  <div class="section" id="tech-stack">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Tech Stack Recommendations ({{ tech_stack_advisor.features|length }} feature{% if tech_stack_advisor.features|length != 1 %}s{% endif %})</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if tech_stack_advisor.summary %}
+      <p style="font-size:0.9rem;margin-bottom:1rem;">{{ tech_stack_advisor.summary }}</p>
+      {% endif %}
+
+      {# Feature selector tabs #}
+      <div class="feature-tabs">
+        {% for feat in tech_stack_advisor.features %}
+        <button class="feature-tab {% if loop.first %}active{% endif %}"
+                onclick="showFeature('{{ loop.index0 }}', this)">
+          {{ feat.feature_name | title }}
+        </button>
+        {% endfor %}
+      </div>
+
+      {# One panel per feature #}
+      {% for feat in tech_stack_advisor.features %}
+      {% set feat_idx = loop.index0 %}
+      <div class="feature-panel {% if loop.first %}active{% endif %}" id="feat-panel-{{ feat_idx }}">
+
+        {% if feat.parity_source %}
+        <div class="parity-banner">
+          ⚡ Competitor parity gap — <strong>{{ feat.parity_source | join(', ') }}</strong> already offer this feature
+        </div>
+        {% endif %}
+
+        {% if feat.current_stack_compatibility %}
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">{{ feat.current_stack_compatibility }}</p>
+        {% endif %}
+
+        {# Architecture diagrams with tabs #}
+        {% if feat.diagrams %}
+        <div class="diagram-tabs" id="dtabs-{{ feat_idx }}">
+          {% for diag in feat.diagrams %}
+          <button class="diagram-tab {% if loop.first %}active{% endif %}"
+                  onclick="showDiagram('{{ feat_idx }}', '{{ loop.index0 }}', this)">
+            {% if diag.phase == 'current' %}📍 Current{% elif diag.phase == 'simple' %}🟢 Simple{% else %}🔵 Comprehensive{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+        {% for diag in feat.diagrams %}
+        <div class="diagram-panel {% if loop.first %}active{% endif %}" id="dpanel-{{ feat_idx }}-{{ loop.index0 }}">
+          <p class="diagram-summary">{{ diag.summary }}</p>
+
+          <div class="diagram-legend">
+            {% if diag.components_to_keep %}
+            <div class="legend-item"><div class="legend-dot legend-keep"></div><span>Keep: {{ diag.components_to_keep | join(', ') }}</span></div>
+            {% endif %}
+            {% if diag.components_with_issues %}
+            <div class="legend-item"><div class="legend-dot legend-issue"></div><span>Issues: {{ diag.components_with_issues | join(', ') }}</span></div>
+            {% endif %}
+            {% if diag.components_to_modify %}
+            <div class="legend-item"><div class="legend-dot legend-modify"></div><span>Modify: {{ diag.components_to_modify | join(', ') }}</span></div>
+            {% endif %}
+            {% if diag.new_components %}
+            <div class="legend-item"><div class="legend-dot legend-new"></div><span>New: {{ diag.new_components | join(', ') }}</span></div>
+            {% endif %}
+          </div>
+
+          <div class="mermaid-wrap">
+            <div class="mermaid" id="mermaid-{{ feat_idx }}-{{ loop.index0 }}">{{ diag.mermaid | safe }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {# Approach comparison cards #}
+        <div class="approach-grid" style="margin-top:1rem;">
+          <div class="approach-card">
+            <h4>🟢 Simple Approach <span class="badge badge-{{ feat.simple_approach.architecture_fit }}">{{ feat.simple_approach.architecture_fit }}</span></h4>
+            <p style="font-size:0.8rem;margin-bottom:0.5rem;">{{ feat.simple_approach.description }}</p>
+            <div class="kv"><span>Stack</span><span>{{ feat.simple_approach.tech_stack | join(', ') }}</span></div>
+            <div class="kv"><span>Effort</span><span>{{ feat.simple_approach.effort_estimate }}</span></div>
+            <div class="kv"><span>New deps</span><span>{{ feat.simple_approach.new_dependencies | join(', ') or 'None' }}</span></div>
+            {% if feat.simple_approach.pros %}<div class="kv"><span>Pros</span><span>{{ feat.simple_approach.pros | join(' · ') }}</span></div>{% endif %}
+            {% if feat.simple_approach.cons %}<div class="kv"><span>Cons</span><span>{{ feat.simple_approach.cons | join(' · ') }}</span></div>{% endif %}
+          </div>
+
+          {% if feat.comprehensive_approach %}
+          <div class="approach-card comprehensive">
+            <h4>🔵 Comprehensive Approach <span class="badge badge-{{ feat.comprehensive_approach.architecture_fit }}">{{ feat.comprehensive_approach.architecture_fit }}</span></h4>
+            <p style="font-size:0.8rem;margin-bottom:0.5rem;">{{ feat.comprehensive_approach.description }}</p>
+            <div class="kv"><span>Stack</span><span>{{ feat.comprehensive_approach.tech_stack | join(', ') }}</span></div>
+            <div class="kv"><span>Effort</span><span>{{ feat.comprehensive_approach.effort_estimate }}</span></div>
+            <div class="kv"><span>New deps</span><span>{{ feat.comprehensive_approach.new_dependencies | join(', ') or 'None' }}</span></div>
+            {% if feat.comprehensive_approach.architecture_changes %}<div class="kv"><span>Arch changes</span><span>{{ feat.comprehensive_approach.architecture_changes | join(' · ') }}</span></div>{% endif %}
+            {% if feat.comprehensive_approach.pros %}<div class="kv"><span>Pros</span><span>{{ feat.comprehensive_approach.pros | join(' · ') }}</span></div>{% endif %}
+            {% if feat.comprehensive_approach.cons %}<div class="kv"><span>Cons</span><span>{{ feat.comprehensive_approach.cons | join(' · ') }}</span></div>{% endif %}
+          </div>
+          {% else %}
+          <div class="approach-card" style="opacity:0.5;border-top-color:var(--border);">
+            <h4>🔵 Comprehensive Approach</h4>
+            <p style="font-size:0.8rem;">No meaningful difference from the simple approach for this feature and stack combination.</p>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if feat.recommendation_rationale %}
+        <div class="card" style="margin-top:0.75rem;border-left-color:var(--success);">
+          <h1 style="margin:0 0 0.4rem;font-size:1.1rem;">Recommendation: {{ feat.recommended_approach | title }}</h1>
+          <p style="font-size:0.85rem;margin-top:0.25rem;">{{ feat.recommendation_rationale }}</p>
+        </div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Quality Audit ────────────────────────────────────── #}
+  {% if quality_audit %}
+  <div class="section" id="quality-audit">
+    <div class="section-header" onclick="toggle(this)">
+      <h2 style="margin:0;border:0;padding:0;">Quality Audit</h2>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="section-body">
+      {% if quality_audit.accessibility.issues %}
+      <h3>Accessibility Issues</h3>
+      {% for issue in quality_audit.accessibility.issues %}
+      <div class="card">
+        <span class="badge badge-{{ issue.severity }}">{{ issue.severity }}</span>
+        {{ issue.description }}
+        {% if issue.wcag_criterion %}<span style="font-size:0.8rem;color:var(--text-muted);"> (WCAG {{ issue.wcag_criterion }})</span>{% endif %}
+        {% if issue.suggestion %}<br><span style="font-size:0.8rem;color:var(--text-muted);">Fix: {{ issue.suggestion }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if quality_audit.performance.metrics %}
+      <h3>Performance Metrics</h3>
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th><th>Rating</th></tr></thead>
+        <tbody>
+        {% for m in quality_audit.performance.metrics %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td>{{ m.value }}</td>
+          <td><span class="badge badge-{{ m.rating }}">{{ m.rating }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% if quality_audit.priority_issues %}
+      <h3>Priority Issues</h3>
+      {% for issue in quality_audit.priority_issues %}
+      <div class="card">
+        <span class="badge badge-{{ issue.impact }}">{{ issue.impact }}</span>
+        <span class="badge">{{ issue.category }}</span>
+        {{ issue.description }}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   {# ── Screenshots ──────────────────────────────────────── #}
   {% if screenshots %}
   <div class="section" id="screenshots">
@@ -397,6 +549,7 @@
 function toggle(header) {
   header.parentElement.classList.toggle('collapsed');
 }
+
 function filterRecs(category, btn) {
   document.querySelectorAll('.filters .filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -404,6 +557,43 @@ function filterRecs(category, btn) {
     card.style.display = (category === 'all' || card.dataset.category === category) ? '' : 'none';
   });
 }
+
+function showFeature(idx, btn) {
+  btn.closest('.section-body').querySelectorAll('.feature-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  btn.closest('.section-body').querySelectorAll('.feature-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('feat-panel-' + idx).classList.add('active');
+}
+
+function showDiagram(featIdx, diagIdx, btn) {
+  document.getElementById('dtabs-' + featIdx).querySelectorAll('.diagram-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Hide all panels for this feature
+  let i = 0;
+  while (document.getElementById('dpanel-' + featIdx + '-' + i)) {
+    document.getElementById('dpanel-' + featIdx + '-' + i).classList.remove('active');
+    i++;
+  }
+  document.getElementById('dpanel-' + featIdx + '-' + diagIdx).classList.add('active');
+}
+
+// Render all Mermaid diagrams after the page loads
+document.addEventListener('DOMContentLoaded', async () => {
+  const nodes = document.querySelectorAll('.mermaid');
+  if (!nodes.length) return;
+  // Re-run mermaid on all diagram nodes (including those in hidden tabs)
+  for (const node of nodes) {
+    const id = node.id || ('mermaid-' + Math.random().toString(36).slice(2));
+    node.id = id;
+    const src = node.textContent.trim();
+    try {
+      const { svg } = await mermaid.render(id + '-svg', src);
+      node.innerHTML = svg;
+    } catch (e) {
+      node.innerHTML = '<pre style="color:#f87171;font-size:0.75rem;">' + e.message + '</pre>';
+    }
+  }
+});
 </script>
 </body>
 </html>

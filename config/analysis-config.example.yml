@@ -4,7 +4,7 @@
 # At least one of target_path or target_url is required.
 
 # === Required (at least one) ===
-target_path: "/Users/sjaspan/src/realworld-nextjs16"   # Absolute path to the local codebase
+target_path: ""   # Absolute path to the local codebase
 target_url: ""                                          # Public URL of the live site
 
 # === User priorities (at least one required) ===
@@ -28,7 +28,18 @@ user_feedback: ""        # Paste or path to user feedback data
 design_assets:           # Paths or URLs to design system / brand docs
   # - "./path/to/figma-export"
 
+site_depth: 1                  # 0=homepage only, 1=top-level pages, 2=two clicks deep
+
 output_directory: "./output"   # Where to write the Markdown report and HTML dashboard
+
+# === Tech Stack Advisor features (optional) ===
+# Features or questions for the 4G Tech Stack Advisor to evaluate.
+# These are ADDITIVE to any parity gaps auto-detected by 4A/4C.
+# Can be short names or full sentences/questions.
+features:
+  # - search
+  # - "Should we replace our custom auth with Auth.js or Clerk?"
+  # - "What's the best way to add real-time notifications to a Next.js app?"
 
 # === Constraints (optional) ===
 constraints:

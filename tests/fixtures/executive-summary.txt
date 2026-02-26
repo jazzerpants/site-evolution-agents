@@ -1,0 +1,8 @@
+Example App has a solid technical foundation but lags competitors on two high-visibility features: site search and dark mode.
+
+**Top priorities:**
+- **Add Site Search** (3-5 days, Fuse.js) — both competitors offer it; high user value signal
+- **Add Dark Mode** (1-2 days) — quick win enabled by existing CSS variable infrastructure
+- **Fix Mobile Navigation** (1-2 days) — sidebar overlaps content at 768px; 60% of traffic is mobile
+
+All three recommendations are low-risk and can be delivered without architectural changes. Start with Dark Mode and Mobile Nav in parallel, then ship Search.
