@@ -24,18 +24,27 @@ def _normalize_mermaid(source: str) -> str:
     # If already multi-line, nothing more to do
     if "\n" in s:
         return s
-    # Single-line semicolon-separated: split on "; " boundaries
-    # Be careful not to split inside node labels like "nodeA[A; B]"
+    # Single-line semicolon-separated: split on ";" boundaries.
+    # Track bracket/brace depth and quoted strings so we don't split
+    # inside node labels like nodeA["A; B"] or A{Question; sub}.
     lines = []
     current = ""
-    depth = 0  # track bracket depth to avoid splitting inside [ ]
+    depth = 0  # track bracket/brace/paren depth
+    in_string = False  # inside double-quoted label
     i = 0
     while i < len(s):
         ch = s[i]
-        if ch in "([":
+        if in_string:
+            current += ch
+            if ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+            current += ch
+        elif ch in "([{":
             depth += 1
             current += ch
-        elif ch in ")]":
+        elif ch in ")]}":
             depth -= 1
             current += ch
         elif ch == ";" and depth == 0:

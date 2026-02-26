@@ -50,6 +50,35 @@ class TestNormalizeMermaid:
         assert "\n" in result
         assert "classDef keep" in result
 
+    def test_semicolons_inside_quoted_labels_not_split(self) -> None:
+        """Semicolons inside double-quoted labels are preserved."""
+        # Only 1 separator semicolon (after flowchart TD), so 2 output lines.
+        # The semicolons inside ["..."] must NOT be treated as separators.
+        src = 'flowchart TD; A["Label; with; semicolons"] --> B[Other]'
+        result = _normalize_mermaid(src)
+        lines = [l.strip() for l in result.splitlines() if l.strip()]
+        assert len(lines) == 2, f"Expected 2 lines, got {len(lines)}: {lines}"
+        assert any('Label; with; semicolons' in l for l in lines)
+
+    def test_multiple_quoted_nodes_split_correctly(self) -> None:
+        """Separator semicolons between nodes are split; inner ones are preserved."""
+        src = 'flowchart TD; A["Entry; A"] --> B; B["Exit; B"]'
+        result = _normalize_mermaid(src)
+        lines = [l.strip() for l in result.splitlines() if l.strip()]
+        # 3 lines: header, edge A→B, standalone B label
+        assert len(lines) == 3, f"Expected 3 lines, got {len(lines)}: {lines}"
+        assert any('Entry; A' in l for l in lines)
+        assert any('Exit; B' in l for l in lines)
+
+    def test_semicolons_inside_curly_braces_not_split(self) -> None:
+        """Semicolons inside curly-brace nodes {text} are preserved."""
+        # Only 1 separator semicolon (after flowchart TD), so 2 output lines.
+        src = "flowchart TD; A{Choice; A or B} --> B[Done]"
+        result = _normalize_mermaid(src)
+        lines = [l.strip() for l in result.splitlines() if l.strip()]
+        assert len(lines) == 2, f"Expected 2 lines, got {len(lines)}: {lines}"
+        assert any("Choice; A or B" in l for l in lines)
+
     def test_validator_applied_on_model_parse(self) -> None:
         """ArchitectureDiagram.mermaid is normalized at parse time."""
         diag = ArchitectureDiagram(

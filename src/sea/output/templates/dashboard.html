@@ -412,7 +412,7 @@
           </div>
 
           <div class="mermaid-wrap">
-            <div class="mermaid" id="mermaid-{{ feat_idx }}-{{ loop.index0 }}">{{ diag.mermaid | safe }}</div>
+            <div class="mermaid" id="mermaid-{{ feat_idx }}-{{ loop.index0 }}">{{ diag.mermaid }}</div>
           </div>
         </div>
         {% endfor %}
@@ -600,7 +600,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { svg } = await mermaid.render(id + '-svg', src);
       node.innerHTML = svg;
     } catch (e) {
-      node.innerHTML = '<pre style="color:#f87171;font-size:0.75rem;">' + e.message + '</pre>';
+      node.innerHTML =
+        '<pre style="color:#f87171;font-size:0.75rem;white-space:pre-wrap;">' +
+        'Mermaid error: ' + e.message + '\n\nSource:\n' +
+        src.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+        '</pre>';
     }
   }
 });
