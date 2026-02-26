@@ -596,10 +596,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const id = node.id || ('mermaid-' + Math.random().toString(36).slice(2));
     node.id = id;
     const src = node.textContent.trim();
+    // Clear the text content so the node is empty before Mermaid renders into it.
+    node.textContent = '';
     try {
-      const { svg } = await mermaid.render(id + '-svg', src);
+      // Pass `node` as the render container so Mermaid outputs directly into
+      // it rather than appending a temp element to document.body (which it
+      // leaves behind as a full-page error overlay when rendering fails).
+      const { svg } = await mermaid.render(id + '-svg', src, node);
       node.innerHTML = svg;
     } catch (e) {
+      // Remove any orphaned error element Mermaid may have appended to body.
+      const orphan = document.getElementById(id + '-svg');
+      if (orphan) orphan.remove();
       node.innerHTML =
         '<pre style="color:#f87171;font-size:0.75rem;white-space:pre-wrap;">' +
         'Mermaid error: ' + e.message + '\n\nSource:\n' +
