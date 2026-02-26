@@ -51,6 +51,13 @@ def render_dashboard(
         # Fallback: inline base64 (e.g. when called without saving to disk)
         screenshots_data = [s.model_dump() for s in report.screenshots]
 
+    # Convert follow-up QA answers from Markdown to HTML
+    feasibility_data = None
+    if report.feasibility:
+        feasibility_data = report.feasibility.model_dump()
+        for qa in feasibility_data.get("follow_up_qa", []):
+            qa["answer_html"] = _md_to_html(qa.get("answer", ""))
+
     return template.render(
         site_name=site_name,
         generated_at=report.generated_at,
@@ -59,7 +66,7 @@ def render_dashboard(
         recommendations=recs_data,
         research=report.research.model_dump() if report.research else None,
         code_analysis=report.code_analysis.model_dump() if report.code_analysis else None,
-        feasibility=report.feasibility.model_dump() if report.feasibility else None,
+        feasibility=feasibility_data,
         quality_audit=report.quality_audit.model_dump() if report.quality_audit else None,
         tech_stack_advisor=report.tech_stack_advisor.model_dump() if report.tech_stack_advisor else None,
         ux_design=report.ux_design.model_dump() if report.ux_design else None,

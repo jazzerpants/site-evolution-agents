@@ -100,6 +100,12 @@
   .rec-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; margin-left: 0.4rem; background: rgba(56,189,248,0.15); color: var(--accent); vertical-align: middle; }
 
   .footer { text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0 1rem; border-top: 1px solid var(--border); margin-top: 2rem; }
+  .md-body p { margin-bottom: 0.6rem; }
+  .md-body ul, .md-body ol { padding-left: 1.25rem; margin-bottom: 0.6rem; }
+  .md-body li { margin-bottom: 0.2rem; }
+  .md-body h1, .md-body h2, .md-body h3 { margin: 0.75rem 0 0.4rem; color: var(--text); }
+  .md-body code { background: var(--surface); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
+  .md-body strong { color: var(--text); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
@@ -257,7 +263,7 @@
       {% for qa in feasibility.follow_up_qa %}
       <div style="margin-bottom:1rem;padding:0.75rem 1rem;background:var(--card-bg);border-radius:6px;border-left:3px solid var(--accent);">
         <div style="font-weight:600;margin-bottom:0.5rem;">Q: {{ qa.question }}</div>
-        <div style="white-space:pre-wrap;line-height:1.6;font-size:0.875rem;">{{ qa.answer }}</div>
+        <div style="font-size:0.875rem;line-height:1.6;" class="md-body">{{ qa.answer_html | safe }}</div>
         {% if qa.asked_at %}<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">{{ qa.asked_at }}</div>{% endif %}
       </div>
       {% endfor %}
