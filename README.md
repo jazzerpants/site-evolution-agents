@@ -79,6 +79,9 @@ sea feature --name "site search" --config config/analysis-config.yml --patch-rep
 # Re-render the Markdown report and HTML dashboard from a saved report.json
 # (useful after template changes without re-running the full pipeline)
 sea render --output ./output
+
+# Ask an ad-hoc feasibility question against a prior run's codebase context
+sea followup --output ./output --question "What is the feasibility of a by-author listing?"
 ```
 
 ### Feature Evaluation (`sea feature`)
@@ -93,6 +96,16 @@ The `sea feature` command runs agents 4B (Code Analysis) and 4G (Tech Stack Advi
 Results are written to `{output_directory}/feature-evaluation.json`.
 
 Use `--patch-report <dir>` to merge the 4G results into a prior `report.json` and re-render both the Markdown report and HTML dashboard in place.
+
+### Ad-hoc Feasibility Questions (`sea followup`)
+
+```bash
+sea followup --output ./output --question "What is the feasibility of a by-author listing?"
+```
+
+Runs agent 4D (Tech Feasibility) against the codebase captured in a prior `report.json` to answer an arbitrary feature question. The Q&A is appended to `report.json` and appears in a "Follow-Up Assessments" section on the dashboard. Multiple questions accumulate — each run appends rather than overwrites.
+
+Requires a prior `sea analyze` run (to have `report.json` and code analysis context).
 
 ## Configuration
 
