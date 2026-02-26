@@ -127,6 +127,88 @@ def feature(
     asyncio.run(_run_feature_evaluation(cfg, features=list(name), dry_run=dry_run, patch_report=patch_report))
 
 
+@app.command()
+def followup(
+    output: Path = typer.Option(..., "--output", "-o", help="Output directory containing report.json from a prior run."),
+    question: str = typer.Option(..., "--question", "-q", help="Feasibility question to ask (e.g. 'What is the feasibility of a by-author listing?')."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Ask an ad-hoc feasibility question using codebase context from a prior run.
+
+    Runs agent 4D against the codebase and appends the Q&A to the report,
+    then re-renders the dashboard and Markdown report.
+
+    Example:
+
+        sea followup --output ./output --question "What is the feasibility of a by-author listing?"
+    """
+    _setup_logging(verbose)
+
+    if not (output / "report.json").exists():
+        console.print(f"[red]No report.json found in {output}[/]")
+        console.print("Run [bold]sea analyze[/] first — it saves report.json at the end.")
+        raise typer.Exit(code=1)
+
+    asyncio.run(_run_followup(output, question))
+
+
+async def _run_followup(out_dir: Path, question: str) -> None:
+    """Run a single 4D follow-up question against an existing report."""
+    import json
+    from datetime import datetime, timezone
+
+    from sea.agents.tech_feasibility.agent import TechFeasibilityAgent
+    from sea.output.dashboard import render_dashboard
+    from sea.output.markdown import render_markdown_report
+    from sea.schemas.feasibility import FeasibilityOutput, FollowUpQA
+    from sea.schemas.pipeline import FinalReport
+    from sea.shared.claude_client import ClaudeClient
+    from sea.shared.codebase_reader import CodebaseReader
+
+    report = FinalReport.model_validate_json((out_dir / "report.json").read_text())
+    cfg = report.config
+
+    reader = CodebaseReader(cfg.target_path) if cfg.target_path else CodebaseReader(".")
+    client = ClaudeClient()
+    agent = TechFeasibilityAgent(client=client, reader=reader)
+
+    console.print(f"[bold]Asking 4D:[/] {question}\n")
+    answer = await agent.run_followup(
+        question=question,
+        code_analysis=report.code_analysis,
+        on_progress=lambda m: console.print(f"  [dim]{m}[/]", end="\r"),
+    )
+
+    qa = FollowUpQA(
+        question=question,
+        answer=answer,
+        asked_at=datetime.now(timezone.utc).isoformat(),
+    )
+    if report.feasibility is None:
+        report.feasibility = FeasibilityOutput(assessments=[], follow_up_qa=[qa])
+    else:
+        report.feasibility.follow_up_qa.append(qa)
+
+    report_path = out_dir / "report.json"
+    report_path.write_text(report.model_dump_json(exclude={"screenshots"}, indent=2))
+
+    summary_path = out_dir / "executive-summary.txt"
+    summary = summary_path.read_text() if summary_path.exists() else ""
+
+    sc_paths_file = out_dir / "screenshot-paths.json"
+    screenshot_paths = json.loads(sc_paths_file.read_text()) if sc_paths_file.exists() else None
+
+    md_path = out_dir / "evolution-report.md"
+    md_path.write_text(render_markdown_report(report, executive_summary=summary))
+
+    html_path = out_dir / "evolution-dashboard.html"
+    html_path.write_text(render_dashboard(report, executive_summary=summary, screenshot_paths=screenshot_paths))
+
+    console.print(f"\n[bold]Q:[/] {question}\n")
+    console.print(f"[bold]A:[/] {answer}\n")
+    console.print("[green]✓ Answer saved — dashboard re-rendered[/]")
+
+
 async def _run_pipeline(cfg: "AnalysisConfig", *, dry_run: bool = False) -> None:  # noqa: F821
     """Run the orchestrator pipeline."""
     from sea.agents.orchestrator.agent import OrchestratorAgent

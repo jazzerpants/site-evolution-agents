@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from sea.agents.base import BaseAgent, extract_json
-from sea.agents.tech_feasibility.prompts import SYSTEM_PROMPT
+from sea.agents.tech_feasibility.prompts import FOLLOWUP_SYSTEM_PROMPT, SYSTEM_PROMPT
 from sea.agents.tech_feasibility.tools import TOOLS, make_tool_handler
 from sea.schemas.code_analysis import CodeAnalysisOutput
 from sea.schemas.config import Constraints
@@ -82,3 +82,28 @@ class TechFeasibilityAgent(BaseAgent):
         return await self._parse_with_retry(
             raw, messages, on_progress=on_progress, on_event=on_event,
         )
+
+    async def run_followup(
+        self,
+        question: str,
+        code_analysis: CodeAnalysisOutput | None = None,
+        *,
+        on_progress: Any | None = None,
+    ) -> str:
+        """Assess an ad-hoc feature idea against the codebase. Returns plain-text answer."""
+        input_data: dict[str, Any] = {"question": question}
+        if code_analysis:
+            input_data["code_context"] = {
+                "tech_stack": code_analysis.model_dump().get("tech_stack", []),
+                "architecture": code_analysis.model_dump().get("architecture", {}),
+                "summary": code_analysis.model_dump().get("summary", ""),
+            }
+        user_message = json.dumps(input_data, indent=2)
+        raw = await self.client.run_agent_loop(
+            system=FOLLOWUP_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+            tools=self.get_tools(),
+            tool_handler=self._tool_handler,
+            on_progress=on_progress,
+        )
+        return raw.strip()

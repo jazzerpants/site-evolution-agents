@@ -134,6 +134,12 @@ def render_markdown_report(report: FinalReport, *, executive_summary: str = "") 
             sections.append(f"| {a.recommendation_id} | {a.rating} | {a.cost_estimate} | {a.developer_days} | {a.risk} |")
         sections.append("")
 
+        if report.feasibility.follow_up_qa:
+            sections.append("### Follow-Up Assessments\n")
+            for qa in report.feasibility.follow_up_qa:
+                sections.append(f"**Q: {qa.question}**\n")
+                sections.append(f"{qa.answer}\n")
+
     # Quality Audit
     if report.quality_audit:
         qa = report.quality_audit
