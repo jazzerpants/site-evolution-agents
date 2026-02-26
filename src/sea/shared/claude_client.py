@@ -13,7 +13,7 @@ import random
 import re
 from typing import Any, Callable, Awaitable
 
-from openai import AsyncOpenAI, RateLimitError
+from openai import AsyncOpenAI, APIConnectionError, APITimeoutError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,19 @@ class ClaudeClient:
                     "suggested=%.1fs, backoff=%ds): %s",
                     delay, attempt + 1, _RATE_LIMIT_MAX_RETRIES,
                     suggested or 0.0, backoff, exc,
+                )
+                await asyncio.sleep(delay)
+            except (APIConnectionError, APITimeoutError) as exc:
+                if attempt == _RATE_LIMIT_MAX_RETRIES - 1:
+                    raise
+                # Transient network / TLS errors — short exponential backoff,
+                # capped at ~40 s, with ±25% jitter.
+                backoff = _RATE_LIMIT_BASE_DELAY * (2 ** min(attempt, 3))
+                jitter = random.uniform(-0.25 * backoff, 0.25 * backoff)
+                delay = max(2.0, backoff + jitter)
+                logger.warning(
+                    "Connection error, retrying in %.1fs (attempt %d/%d): %s",
+                    delay, attempt + 1, _RATE_LIMIT_MAX_RETRIES, exc,
                 )
                 await asyncio.sleep(delay)
 
